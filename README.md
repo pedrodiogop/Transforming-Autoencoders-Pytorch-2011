@@ -2,7 +2,7 @@
 
 This project is based on the research presented in the following paper:
 
-Hinton, Geoffrey E., Alex Krizhevsky, and Sida D. Wang. "Transforming auto-encoders." International Conference on Artificial Neural Networks. Springer, Berlin, Heidelberg, 2011. [http://www.cs.toronto.edu/~fritz/absps/transauto6.pdf]
+# Hinton, Geoffrey E., Alex Krizhevsky, and Sida D. Wang. "Transforming auto-encoders." International Conference on Artificial Neural Networks. Springer, Berlin, Heidelberg, 2011. http://www.cs.toronto.edu/~fritz/absps/transauto6.pdf
 
 The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoelacanth/TransformingAutoencoder_PyTorch)
 
