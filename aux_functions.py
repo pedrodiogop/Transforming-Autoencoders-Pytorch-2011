@@ -1,14 +1,33 @@
 from cv2 import warpAffine
 import numpy as np
 import os
-import cv2
 import torch
 import torchvision
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 
+def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window):
+        
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(loss_history, label='Loss', linewidth=0.8)
+            
+    # Média móvel para ver a tendência
+    if len(loss_history) >= window: # The real trend, without the noise.
+        moving_avg = np.convolve(loss_history, np.ones(window)/window, mode='valid')
+        ax.plot(range(window-1, len(loss_history)), moving_avg, 
+                label=f'Média móvel ({window})', color='red', linewidth=1.5)
+            
+    ax.set_xlabel('Iteração')
+    ax.set_ylabel('Loss')
+    ax.set_title(f'Função de Custo — Época {epoch+1}')
 
-def BatchShift_torch(imbatch: torch.Tensor, dxdy=[-4, 4], device='cpu'):
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.savefig(f'{RESULTS_DIR_LOSS}/loss_ep_{epoch+1:03d}.png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+def BatchShift_torch(imbatch: torch.Tensor, dxdy, device='cpu'):
     """
     Substitui o BatchShift original — corre 100% no MPS/CUDA/CPU sem sair da GPU.
     
@@ -88,17 +107,18 @@ def BatchShift(imbatch, dxdy = [-4,4]):
         #save_shifted_images(imbatch[i], imbatch_shift[i], epoch, batch, img_idx=i) # Salva as imagens deslocadas para verificação
     return imbatch_shift, R
 
-def Show_Batch(inp, target, out, epoch, i,title, save = True):
-        inp = inp.detach().cpu().view(-1, 1, 28, 28)
-        target = target.detach().cpu().view(-1, 1, 28, 28)
-        out = out.detach().cpu().view(-1, 1, 28, 28)
-        batch = torch.cat([inp, target, out], dim=3) # dim=3 coloca-os lado a lado
-        im = torchvision.utils.make_grid(batch, nrow=8,  normalize = True) # Cria uma grade de imagens a partir do lote, organizando-as em 4 colunas.
-        img_exibir = np.transpose(im.numpy(), (1, 2, 0))
-        #plt.imshow(img_exibir) # formato padrão da Matplotlib (Altura, Largura, Canais)
-        # plt.show()
-        if save:
-            diretorio = 'images/{0}/epoch_{1:02d}'.format(title, epoch)
-            os.makedirs(diretorio, exist_ok=True)
-            caminho = os.path.join(diretorio, 'batch_{0:05d}.png'.format(i))
-            plt.imsave(caminho,img_exibir)
+def Show_Batch(inp, target, out, epoch, i, title, save=True):
+    C, H, W = inp.shape[1], inp.shape[2], inp.shape[3]  # infere do batch
+    inp    = inp.detach().cpu().view(-1, C, H, W)
+    target = target.detach().cpu().view(-1, C, H, W)
+    out    = torch.sigmoid(out).detach().cpu().view(-1, C, H, W)
+    
+    batch = torch.cat([inp, target, out], dim=3)
+    im = torchvision.utils.make_grid(batch, nrow=8, normalize=True)
+    img_exibir = np.transpose(im.numpy(), (1, 2, 0))
+    
+    if save:
+        diretorio = 'images/{0}/epoch_{1:02d}'.format(title, epoch)
+        os.makedirs(diretorio, exist_ok=True)
+        caminho = os.path.join(diretorio, 'batch_{0:05d}.png'.format(i))
+        plt.imsave(caminho, img_exibir)

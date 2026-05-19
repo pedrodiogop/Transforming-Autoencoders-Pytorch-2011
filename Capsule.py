@@ -2,46 +2,64 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-# Capsule(28*28, 10, 50)
+# Capsule(784, 40, 40)
 class Capsule(nn.Module):
-    def __init__(self, input_dim, cap_dim, gen_dim, xy_dim = 2):
+    def __init__(self, input_dim, cap_rec, cap_gen, xy_dim = 2):
         super(Capsule, self).__init__()
-        self.indim = input_dim
-        self.cpdim = cap_dim
-        self.gndim = gen_dim
-        self.xytrn = xy_dim
-        # São criados 5 camadas lineares independetes
-        # No metodo forward definimos o flow de dados entre as camadas, ou seja, quais camadas recebem a saída de outras camadas como entrada
-        # 28*28 -> 10 recognition units 
-        self.cp = nn.Linear(self.indim, self.cpdim) #Recognizer units
-        # 10 -> 2 resumir a caracteristica da imagem em 2 numeros (x,y)
-        self.xy = nn.Linear(self.cpdim, self.xytrn) #estimates of the X and Y
-        # 10 -> 1 probabilidade de existir a caracteristica na imagem
-        self.pr = nn.Linear(self.cpdim, 1)          #prob of feature
-        # 2 -> 50 gerar uma nova imagem a partir dos 2 numeros (x,y)
-        self.gn = nn.Linear(self.xytrn, self.gndim) #The generator
-        # 50 -> 28*28 reconstruir a imagem a partir dos 50 numeros gerados
-        self.rc = nn.Linear(self.gndim, self.indim) #The reconstructed image
+        self.inpdim = input_dim
+        self.cap_rec = cap_rec
+        self.cap_gen = cap_gen
+        self.cap_xy = xy_dim
+        # 28*28 -> 40 recognition units 
+        self.inp_rec = nn.Linear(self.inpdim, self.cap_rec)
+
+        # 40 -> 2; the pose of the feature in the image (x,y)
+        self.rec_xy = nn.Linear(self.cap_rec, self.cap_xy)
+
+        # 40 -> 1; probability of the feature being present in the image
+        self.rec_prob = nn.Linear(self.cap_rec, 1)
+
+        # 2 -> 40 generation units
+        self.xy_gen = nn.Linear(self.cap_xy, self.cap_gen)
+
+        # 40 -> 28*28 reconstruction of the image
+        self.gen_out = nn.Linear(self.cap_gen, self.inpdim)
+        # Shape(784, 40) 
+        # 784 each row is the contribution of all 40 units to one output pixel
+        # 40 columns, each column represents the weights of one generative unit.
 
     # inp/X -> batch of images
-# dxy/delxy -> batch of transformations
+    # dxy/delxy -> batch of transformations
     def forward(self, X, delxy, sp = False): 
-        X = X.view(-1, 28*28) # flatten the input images, ou seja, transformar cada imagem de 28x28 pixels em um vetor de 784 elementos (28*28 = 784). O -1 é usado para indicar que o número de linhas deve ser inferido automaticamente com base no tamanho do lote. Assim, se o lote tiver 16 imagens, a saída será um tensor de forma (16, 784).
-        # print(X.size(), delxy.size()) 
-        # torch.Size([16, 784]) torch.Size([16, 2])
-        cap = F.relu(self.cp(X))  
-        #print('cap', cap.size()) cap torch.Size([16, 10])
-        x_y = self.xy(cap)
-        # print('x_y', x_y.size()) x_y torch.Size([16, 2])
-        prb = torch.sigmoid(self.pr(cap))
-        # print('prb', prb.size()) prb torch.Size([16, 1])
-        # print('x_y + del', (x_y + delxy).size()) x_y + del torch.Size([16, 2])
-        gen = F.relu(self.gn(x_y + delxy)) 
-        # print('gen', gen.size()) gen torch.Size([16, 50])
-        rec = self.rc(gen)
-        # print('rec',rec.size()) rec torch.Size([16, 784])
-        if sp:
-            return torch.mul(rec,prb), x_y
-        else:
-            return torch.mul(rec,prb)
+        # flatten the input images from (B, 1, 28, 28) to (B, 784)
+        X = X.flatten(start_dim=1)
+        # print(X.size()) 
+        # torch.Size([64, 784])
+
+        # print(delxy.size()) 
+        # torch.Size([64, 2])
+
+        cap = F.relu(self.inp_rec(X))  
+        # print('cap', cap.size()) 
+        # cap torch.Size([64, 40])
+
+        x_y = self.rec_xy(cap)
+        # print('x_y', x_y.size()) 
+        # x_y torch.Size([64, 2])
+
+        prb = torch.sigmoid(self.rec_prob(cap))
+        # print('prb', prb.size()) 
+        # prb torch.Size([64, 1])
         
+        # print('x_y + del', (x_y + delxy).size()) 
+        # x_y + del torch.Size([64, 2])   
+        gen = F.relu(self.xy_gen(x_y + delxy)) 
+        # print('gen', gen.size()) 
+        # gen torch.Size([64, 40])
+
+        rec = self.gen_out(gen)
+        # print('rec',rec.size()) 
+        # rec torch.Size([64, 784])
+
+        output = rec * prb # torch.mul(rec, prb)
+        return (output, x_y, prb) if sp else output
