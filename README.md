@@ -23,6 +23,7 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
     capLayer.py -> Capsule layer
     capsule.py -> Individual capsule
     aux_functions.py -> auxiliary functions
+    gradients_aux.py -> gradient functions  
     test.py -> Model testing 
 
 
@@ -39,23 +40,5 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
 ## Running the code: 
     python3 main.py 
 
-
-    # 1. Garantir que a pasta 'plots' existe
-    os.makedirs('images/plots', exist_ok=True)
-    # 2. Criar a figura
-    fig = plt.figure(figsize=(10, 5))
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot(range(len(loss_history)), loss_history, label=f'Função de Custo')
-    # 4. Estilizar o gráfico
-    ax.set_title('Função de Custo')
-    ax.set_xlabel('Iterações')
-    ax.set_ylabel('Loss (BCELoss)')
-    ax.grid(True)
-    ax.legend()
-    # 5. Guardar a imagem
-    caminho_plot = 'images/plots/funcao_custo.png'
-    fig.savefig(caminho_plot)    
-    # 6. Fechar a figura para libertar memória RAM
-    plt.close(fig)
 
 

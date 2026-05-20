@@ -5,7 +5,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from aux_functions import Show_Batch, BatchShift_torch, Plot_Loss
+from aux_functions import Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss
 from gradients_aux import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
@@ -19,7 +19,7 @@ def get_args():
     
     parser.add_argument('--device',     type=str,   default='mps',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
     parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
-    parser.add_argument('--epochs',     type=int,   default=10,     help='Number of epochs to train')
+    parser.add_argument('--epochs',     type=int,   default=15,     help='Number of epochs to train')
     parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
@@ -42,18 +42,22 @@ if __name__ == '__main__':
     CAP_GEN = args.cap_gen # decode the image
 
     lr = args.lr
-    best_loss = 1
+    best_loss = 100.0
 
     # Define the directory to save results
     RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR}/Image_Loss'
-    RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR}/Gradients_log.txt'
+    RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR}/In_Out_Target_Images'
+    # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR}/Gradients_log.txt'
     RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR}/Mean_Gradients_by_Capsule'
     RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR}/Mean_Gradients_by_Layer'
 
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    os.makedirs(f'{RESULTS_DIR_LOSS}', exist_ok=True) # save loss for each epoch
+    os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
+    os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
+    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
+    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
 
     if args.dataset == 'FashionMNIST':
         trainset = datasets.FashionMNIST(
@@ -131,9 +135,9 @@ if __name__ == '__main__':
     'gen_out': []
 }
     
+    len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
     for epoch in range(NUM_EPOCHS):
-        start_time = time.time()  # Marca o início
-        runn_loss = 0.0
+        start_time = time.time()
         for i, (inp, _) in enumerate(trainloader): # 469 batches por época
             # print(f"inp shape: {inp.shape}, inp dtype: {inp.dtype} inp length: {len(inp)} inp size: {inp.size()}") 
             # inp shape: torch.Size([64, 1, 28, 28]), inp dtype: torch.float32 inp length: 64 inp size: torch.Size([64, 1, 28, 28])
@@ -142,7 +146,7 @@ if __name__ == '__main__':
             # print(f"{inp.shape} {inp.dtype}") 16, 1, 28, 28 torch.float32
             # print(f"{inp.numpy().shape} {inp.numpy().dtype}") (16, 1, 28, 28) float32
             inp = inp.to(DEVICE)
-            target, dxy = BatchShift_torch(inp, [-1, 1], DEVICE)   # tudo na GPU
+            target, dxy = BatchShift_torch(inp, [-8, 8], DEVICE)   # tudo na GPU
             #target_np, dxy = BatchShift(inp.numpy().copy(), [-4,4])
             #target = torch.from_numpy(target_np).float().view(-1, 1, 28, 28).to(DEVICE)
             # target -> imagens deslocadas 
@@ -181,70 +185,34 @@ if __name__ == '__main__':
             # else:
 
             out = capL(inp, dxy)
-            # out -> batch of reconstructed images [16, 784]
-            # R -> batch of poses (x,y) [16, 2]
+            # out -> batch of reconstructed images [64, 784]
+            # R -> batch of poses (x,y) [64, 2]
+
             out = out.view(-1, IMG_C, IMG_H, IMG_W) # reshape the output to match the original image shape
-            # out -> batch of reconstructed images [16, 1, 28, 28]
-            # target -> batch of shifted images [16, 1, 28, 28]
+            # out -> batch of reconstructed images [64, 1, 28, 28]
+            # target -> batch of shifted images [64, 1, 28, 28]
             loss = crit(out, target)
             loss.backward()
-
-
-            # MEAN GRADIENTS FOR EACH CAPSULE
-            grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
-    
-            # MEAN GRADIENTS FOR EACH LAYER 
-            grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
-
             optimizer.step()
             current_loss = loss.item()
-            # Dentro do loop de épocas, se a loss atual for a menor:
+
+            # Save the loss for plotting later
+            loss_history.append(current_loss)
+            
+            # Save the best model based on the lowest loss
+            # Gona use it on test.py
             if current_loss < best_loss:
                 best_loss = current_loss
                 best_state = {k: v.clone() for k, v in capL.state_dict().items()}
-            runn_loss += current_loss
-            loss_history.append(current_loss)
-            # print(f"Epoch: {epoch}, Iter: {i}, current_loss: {current_loss:.4f}")
-            # Epoch: 1, Iter: 561, current_loss: 0.6935
 
-            # if i % 500 == 0:
-            #     with open('data/instantiate.txt', 'a') as file:
-            #         file.write(f"ep_{epoch+1:05d}_img_{i+1:05d}\n")
-            #         # Se R for uma lista de tensores (como no teu forward)
-            #         # Vamos converter para uma string de números limpa
-            #         for idx, pose in enumerate(R):
-            #             pose_data = pose[0].detach().cpu().numpy() 
-            #             file.write(f"Cap_{idx}: {pose_data} ")
-                    
-            #         file.write('\n---\n')
-                
-            #     runn_loss = 0.0 # Não te esqueças de resetar a loss acumulada!
+            # Save the input, output and target images for the first and last batch of each epoch
+            if (i == 0 or i == len_batch_size): 
+                Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES)
 
-            if i == 0:
-                Show_Batch(inp, target, out, epoch, i, title='Batch Results', save=True)
-                # show_batch(inp.data, epoch, i ,title = 'Input', save = True)
-                # show_batch(out.data, epoch, i, title = 'output', save = True)
-                # print('{0:05d}, {1:05d} loss : {2:6.5f}'.format(epoch+1, i+1, runn_loss / 100))
-                runn_loss = 0
-
-        end_time = time.time()    
-        epoch_duration = end_time - start_time
-        print(f"Época [{epoch+1}/{NUM_EPOCHS}] finalizada em {epoch_duration:.2f} segundos, loss: {current_loss:.4f}") 
-
-                # fig, axes = plt.subplots(2, 5, figsize=(12, 6))
-                # fig.suptitle(f'Pesos Generativos rc — Época {epoch+1}')
-                
-                # for j in range(10):  # primeiras 10 cápsulas
-                #     # cada cápsula tem o seu próprio rc: shape (784, 50)
-                #     weights = capL.caps[j].rc.weight.data.cpu()  # (784, 50)
-                    
-                #     # média dos pesos de saída — representa o "template" da cápsula
-                #     template = weights.mean(dim=1).view(28, 28)
-                    
-                #     ax = axes[j // 5][j % 5]
-                #     ax.imshow(template, cmap='gray')
-                #     ax.set_title(f'Cáp {j}')
-                #     ax.axis('off')
+            # MEAN GRADIENTS FOR EACH CAPSULE
+            grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
+            # MEAN GRADIENTS FOR EACH LAYER 
+            grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
 
         fig, axes = plt.subplots(9, 10, figsize=(12,9))
         fig.suptitle(f'Pesos Generativos rc — Época {epoch+1}', fontsize=6)
@@ -265,12 +233,15 @@ if __name__ == '__main__':
         os.makedirs('Imagens_Pesos_Generativos', exist_ok=True)
         plt.savefig(f'Imagens_Pesos_Generativos/pesos_rc_ep_{epoch+1}.png')
         plt.close(fig)
+
+    
+        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(time.time() - start_time):.2f} seconds; Loss: {current_loss:.4f}") 
         
         # Save_Gradients(capL, epoch, RESULTS_DIR_GRADIENTS) # For Future Works 
         Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window = 50)
+
         Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES)
         Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS)
         # grad_flow_caps = {}  # if you want a graph for each epoch, reset the gradients after plotting
         # grad_flow_layers = {'inp_rec': [], 'rec_xy': [], 'rec_prob': [], 'xy_gen': [], 'gen_out': []}
-
-    torch.save(best_state, "best_checkpoint.pth")
+    torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 
