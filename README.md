@@ -18,10 +18,11 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
   * `Gradients_Per_Layer`: Displays the gradient flow across different layers across epoch or batch_size.
 * **Latent Space & Spatial Equivariance Diagnostics (`poses.py`):** Developed a dedicated evaluation framework to validate the network's mathematical behavior against Geoffrey Hinton's core formulation of capsule-based coordinate frames.
     * **Methodology:** Tracks and extracts the learned internal capsule pose parameters before and after applying physical horizontal shifts generated dynamically via PyTorch `affine_grid` and `grid_sample` mapping.
-    * **Linear Equivariance Validation:** Outputs comprehensive scatter plots with linear regression lines, proving a high correlation between original and displaced latent representations, backed by robust Coefficients of Determination ($R^2 \approx 0.76$ for positive shifts).
-    * **Directional Awareness:** Visualizes a distinct, parallel geometric separation between the **Less (-3)** and **More (+3)** translation trends, confirming that the targeted capsule (`study_capsule_index = 2`) successfully internalizes both the magnitude and direction of the displacement vector ($dxy$).
+    * **Linear Equivariance Validation:** Outputs comprehensive scatter plots with linear regression lines, proving a high correlation between original and displaced latent representations, backed by robust Coefficients of Determination.
+    * **Directional Awareness:** Visualizes a distinct, parallel geometric separation between the **Less (-3)** and **More (+3)** translation trends, confirming that the targeted capsule successfully internalizes both the magnitude and direction of the displacement vector ($dxy$).
     * **Feature Disentanglement:** Demonstrates that the architecture successfully extracts a continuous coordinate system for spatial reasoning instead of merely memorizing surface-level pixel intensities.
-    * Below is the generated scatter plot proving the linear relationship of the latent space: ![Pose Equivariance Plot](Poses/Poses_Combined_[LessMore,Original]_Comparisons.png)
+    * Within the Poses/Comparison_Original_Shift folder, we can see some results filtered by the probability of the capsule, removing some noise.
+    * Below is the generated scatter plot proving the linear relationship of the latent space (): ![Pose Equivariance Plot](Poses/Poses_Combined_[LessMore,Original]_Comparisons.png)
 
 
 ## Code is divided into: 

@@ -44,7 +44,7 @@ def Save_In_Out_Target_Images(inp, target, out, i, RESULTS_DIR_IN_OUT_TARGET_IMA
     caminho = os.path.join(RESULTS_DIR_IN_OUT_TARGET_IMAGES, f'{type}_batch_{i:04d}.png')
     plt.imsave(caminho, img)
 
-def Save_Plot_Poses_LessOriginal_MoreOriginal(poses_combined_less, poses_combined_more, POSES_DIR):
+def Save_Plot_Poses_LessOriginal_MoreOriginal(poses_combined_less, poses_combined_more, POSES_DIR, cap_idx):
 
     plt.figure(figsize=(11, 11))
 
@@ -89,7 +89,7 @@ def Save_Plot_Poses_LessOriginal_MoreOriginal(poses_combined_less, poses_combine
     plt.grid(True, alpha=0.1)
     plt.legend(loc='upper left')
 
-    plt.savefig(f'{POSES_DIR}/Poses_Combined_[LessMore,Original]_Comparisons.png', dpi=150, bbox_inches='tight')
+    plt.savefig(f'{POSES_DIR}/Poses_Combined_[LessMore,Original]_Comparisons{cap_idx}.png', dpi=150, bbox_inches='tight')
     plt.close()
 
 def Plot_Poses_Individuals(poses_combined, title):
@@ -117,8 +117,8 @@ if __name__ == '__main__':
     
     padding_mode_sift = 'border' if 'CIFAR' in DATASET else 'zeros'
 
-    POSES_DIR = 'Poses'
-    POSES_DIR_Images = f'{POSES_DIR}/Images'
+    POSES_DIR = 'Poses/Comparison_Original_Shift'
+    #POSES_DIR_Images = f'{POSES_DIR}/Images'
 
     os.makedirs(POSES_DIR_Images, exist_ok=True)
 
@@ -137,34 +137,34 @@ if __name__ == '__main__':
 
     capL_test.eval()
     len_batch_size = len(testeloader) - 2 # To save last Input, Output, Target images of each epoch
-    study_capsule_index = 2 # Capsule index to study (0 to 24)
-    poses_y_original = []
-    all_y_poses_less = []
-    all_y_poses_more = []
-    poses_x_original = []
-    all_x_poses_less = []
-    all_x_poses_more = []
+    all_data = {cap_idx: {'x_orig': [], 'y_orig': [], 
+                       'x_less': [], 'y_less': [],
+                       'x_more': [], 'y_more': [],
+                       'prob_less': [], 'prob_more': []} 
+            for cap_idx in range(NUM_CAPS)}
     with torch.no_grad():
         for i, (img, _) in enumerate(testeloader):
             img = img.to(DEVICE)
             dxy_zeros = torch.zeros(img.size(0), 2, device=DEVICE)
-            img_cap_dxyzeros, poses_delzeros, poses_prob = capL_test(img, dxy_zeros, sep=True)
+            img_cap_dxyzeros, poses_delzeros, all_prob = capL_test(img, dxy_zeros, sep=True)
             # print(poses_delzeros[study_capsule_index].size()) # torch.Size([25, 64, 2])
-            poses_x_original.append(poses_delzeros[study_capsule_index, :, 0].cpu().numpy()) # Save original x poses for all batches
-            poses_y_original.append(poses_delzeros[study_capsule_index, :, 1].cpu().numpy()) # Save original y poses for all batches
 
             # -3 ou +3 shift doesn't mean it's a 3 pixel shift
             target_less, dxy_less = BatchShift(img, -3, padding_mode_sift, DEVICE)
             target_more, dxy_more = BatchShift(img, 3, padding_mode_sift, DEVICE)
 
-            out_less, poses_less, poses_prob_less = capL_test(target_less, dxy_less, sep=True)
-            out_more, poses_more, poses_prob_more = capL_test(target_more, dxy_more, sep=True)
+            out_less, poses_less, prob_less = capL_test(target_less, dxy_less, sep=True)
+            out_more, poses_more, prob_more = capL_test(target_more, dxy_more, sep=True)
 
-            all_x_poses_less.append(poses_less[study_capsule_index, :, 0].cpu().numpy()) 
-            all_y_poses_less.append(poses_less[study_capsule_index, :, 1].cpu().numpy()) 
-
-            all_x_poses_more.append(poses_more[study_capsule_index, :, 0].cpu().numpy()) 
-            all_y_poses_more.append(poses_more[study_capsule_index, :, 1].cpu().numpy()) 
+            for cap_idx in range(NUM_CAPS):
+                all_data[cap_idx]['x_orig'].append(poses_delzeros[cap_idx, :, 0].cpu().numpy())
+                all_data[cap_idx]['y_orig'].append(poses_delzeros[cap_idx, :, 1].cpu().numpy())
+                all_data[cap_idx]['x_less'].append(poses_less[cap_idx, :, 0].cpu().numpy())
+                all_data[cap_idx]['y_less'].append(poses_less[cap_idx, :, 1].cpu().numpy())
+                all_data[cap_idx]['x_more'].append(poses_more[cap_idx, :, 0].cpu().numpy())
+                all_data[cap_idx]['y_more'].append(poses_more[cap_idx, :, 1].cpu().numpy())
+                all_data[cap_idx]['prob_less'].append(prob_less[cap_idx, :, 0].cpu().numpy())
+                all_data[cap_idx]['prob_more'].append(prob_more[cap_idx, :, 0].cpu().numpy())
 
             # img_cap_dxyzeros = img_cap_dxyzeros.view(-1, IMG_C, IMG_H, IMG_W)
             # out_less = out_less.view(-1, IMG_C, IMG_H, IMG_W)
@@ -175,25 +175,38 @@ if __name__ == '__main__':
             # if (i == 0 or i == len_batch_size): 
             #     Save_In_Out_Target_Images(img, target_less, target_more, i, POSES_DIR_Images, 'function_of_shift')
             #     Save_In_Out_Target_Images(img, out_less, out_more, i, POSES_DIR_Images, 'capsule_output')
+
+        for cap_idx in range(NUM_CAPS):
+            d = {k: np.concatenate(v, axis=0) for k, v in all_data[cap_idx].items()}
+
+            mask_less = d['prob_less'] >= 0.9
+            mask_more = d['prob_more'] >= 0.9
+
+            poses_combined_less = np.stack([d['x_less'], d['x_orig']], axis=1)[mask_less]
+            poses_combined_more = np.stack([d['x_more'], d['x_orig']], axis=1)[mask_more]
+            
+            if len(poses_combined_less) < 1 or len(poses_combined_more) < 1:
+                print(f"Cápsula {cap_idx} — dados insuficientes após filtro (less={len(poses_combined_less)}, more={len(poses_combined_more)}), a saltar...")
+                continue
+
+            Save_Plot_Poses_LessOriginal_MoreOriginal(
+                poses_combined_less, poses_combined_more, POSES_DIR, cap_idx
+            )
+
+        # for threshold in [0.5, 0.6, 0.7, 0.8]:
+        #     mask = all_prob_less >= threshold
+        #     print(f"threshold={threshold} → {mask.sum()} poses ({mask.mean()*100:.1f}%)")
+        #     threshold=0.5 → 8796 poses (88.0%)
+        #     threshold=0.6 → 6216 poses (62.2%)
+        #     threshold=0.7 → 3433 poses (34.3%)
+        #     threshold=0.8 → 1259 poses (12.6%)
+        # Aplica o filtro
+        # print(f"Total de poses:    {len(poses_combined_less)}") 10000
+        # print(f"Poses filtradas:   {poses_combined_less_filtered.shape[0]}") 6216
+        # print(f"Poses removidas:   {(~mask).sum()}") 3784
         
-        # All poses for the "img"
-        poses_x_original = np.concatenate(poses_x_original, axis=0)  # (10000,) 
-        poses_y_original = np.concatenate(poses_y_original, axis=0)  # (10000,) 
-
-        # All poses for the "target_less" images with -3 shift
-        all_x_poses_less = np.concatenate(all_x_poses_less, axis=0)  # (10000,) 
-        all_y_poses_less = np.concatenate(all_y_poses_less, axis=0)  # (10000,) 
-        
-        # All poses for the "target_more" images with +3 shift
-        all_x_poses_more = np.concatenate(all_x_poses_more, axis=0)  # (10000,)
-        all_y_poses_more = np.concatenate(all_y_poses_more, axis=0)  # (10000,)
-
-        poses_combined_less = np.stack([all_x_poses_less, poses_x_original], axis=1)
-        poses_combined_more = np.stack([all_x_poses_more, poses_x_original], axis=1)
-
-        Save_Plot_Poses_LessOriginal_MoreOriginal(poses_combined_less, poses_combined_more, POSES_DIR)
-        Plot_Poses_Individuals(poses_combined_less, 'LessOriginal')
-        Plot_Poses_Individuals(poses_combined_more, 'MoreOriginal')
+        # Plot_Poses_Individuals(poses_combined_less_filtered, 'LessOriginal')
+        # Plot_Poses_Individuals(poses_combined_more_filtered, 'MoreOriginal')
         
 
 
