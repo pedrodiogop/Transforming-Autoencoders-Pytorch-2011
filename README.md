@@ -21,7 +21,7 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
     * **Linear Equivariance Validation:** Outputs comprehensive scatter plots with linear regression lines, proving a high correlation between original and displaced latent representations, backed by robust Coefficients of Determination ($R^2 \approx 0.76$ for positive shifts).
     * **Directional Awareness:** Visualizes a distinct, parallel geometric separation between the **Less (-3)** and **More (+3)** translation trends, confirming that the targeted capsule (`study_capsule_index = 2`) successfully internalizes both the magnitude and direction of the displacement vector ($dxy$).
     * **Feature Disentanglement:** Demonstrates that the architecture successfully extracts a continuous coordinate system for spatial reasoning instead of merely memorizing surface-level pixel intensities.
-    * Below is the generated scatter plot proving the linear relationship of the latent space: ![Pose Equivariance Plot](Poses/Poses_Combined_[LessMore,Original]_Comparisons.png)
+    * Below is the generated scatter plot proving the linear relationship of the latent space: <img src="images/Poses_Combined_Comparisons.png" alt="Pose Equivariance Plot" width="500">
 
 
 ## Code is divided into: 
