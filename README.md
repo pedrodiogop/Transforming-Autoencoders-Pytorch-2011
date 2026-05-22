@@ -12,10 +12,16 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
 *   Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
 *   Replaced the `Sigmoid` + `BCELoss` combination with `BCEWithLogitsLoss` for more stable gradient calculation.
 *   Results are dynamically saved in a hierarchical folder structure based on the hyperparameters: Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}/. Example: Results/fashion-mnist/6_25_16_16_0.001/. Inside each folder we store: 'Image_Loss' -> A plot representing the Loss Function evolution for each epoch.
+*   Function that save the Input/Target/Output Images for comparison
 * **Gradient Analysis Plots:**
   * `Gradients_Per_Capsule`: Visualizes the mean gradient behavior for each individual capsule across epochs or batch_size.
   * `Gradients_Per_Layer`: Displays the gradient flow across different layers across epoch or batch_size.
-
+* **Latent Space & Spatial Equivariance Diagnostics (`poses.py`):** Developed a dedicated evaluation framework to validate the network's mathematical behavior against Geoffrey Hinton's core formulation of capsule-based coordinate frames.
+    * **Methodology:** Tracks and extracts the learned internal capsule pose parameters before and after applying physical horizontal shifts generated dynamically via PyTorch `affine_grid` and `grid_sample` mapping.
+    * **Linear Equivariance Validation:** Outputs comprehensive scatter plots with linear regression lines, proving a high correlation between original and displaced latent representations, backed by robust Coefficients of Determination ($R^2 \approx 0.76$ for positive shifts).
+    * **Directional Awareness:** Visualizes a distinct, parallel geometric separation between the **Less (-3)** and **More (+3)** translation trends, confirming that the targeted capsule (`study_capsule_index = 2`) successfully internalizes both the magnitude and direction of the displacement vector ($dxy$).
+    * **Feature Disentanglement:** Demonstrates that the architecture successfully extracts a continuous coordinate system for spatial reasoning instead of merely memorizing surface-level pixel intensities.
+    * Below is the generated scatter plot proving the linear relationship of the latent space: ![Pose Equivariance Plot](Poses/Poses_Combined_[LessMore,Original]_Comparisons.png)
 
 
 ## Code is divided into: 
@@ -24,7 +30,8 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
     capsule.py -> Individual capsule
     aux_functions.py -> auxiliary functions
     gradients_aux.py -> gradient functions  
-    test.py -> Model testing 
+    test.py -> Model testing
+    poses.py -> To trace the relationship between poses in the displaced images and the original images.
 
 
 ## Command-Line Arguments (default config):
@@ -39,6 +46,7 @@ The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoel
 
 ## Running the code: 
     python3 main.py 
+    python3 poses.py
 
 
 

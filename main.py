@@ -5,31 +5,16 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from aux_functions import Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss
+from aux_functions import Get_Args, Plot_Poses, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss
 from gradients_aux import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
 import torch.nn as nn
 import time
-import argparse
 import numpy as np
 
-def get_args():
-    parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
-    
-    parser.add_argument('--device',     type=str,   default='mps',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
-    parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
-    parser.add_argument('--epochs',     type=int,   default=15,     help='Number of epochs to train')
-    parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
-    parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
-    parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
-    parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
-    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10".')
-    
-    return parser.parse_args()
-
 if __name__ == '__main__':
-    args = get_args()
+    args = Get_Args()
 
     # If you want to see your GPU or CPU in action, you can use the following code to check if PyTorch recognizes it and to set the device accordingly:
     # device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
@@ -40,6 +25,7 @@ if __name__ == '__main__':
     NUM_CAPS = args.num_caps
     CAP_REC = args.cap_rec # encode the image
     CAP_GEN = args.cap_gen # decode the image
+    DATASET = args.dataset
 
     lr = args.lr
     best_loss = 100.0
@@ -48,6 +34,7 @@ if __name__ == '__main__':
     RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR}/Image_Loss'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR}/In_Out_Target_Images'
+    RESULTS_DIR_POSES = f'{RESULTS_DIR}/Poses'
     # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR}/Gradients_log.txt'
     RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR}/Mean_Gradients_by_Capsule'
     RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR}/Mean_Gradients_by_Layer'
@@ -56,35 +43,18 @@ if __name__ == '__main__':
     os.makedirs(RESULTS_DIR, exist_ok=True)
     os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
     os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
+    os.makedirs(RESULTS_DIR_POSES, exist_ok=True) # save poses for each epoch
     os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
     os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
 
-    if args.dataset == 'FashionMNIST':
-        trainset = datasets.FashionMNIST(
-            root="tmp",
-            train=True,
-            download=True,
-            transform=ToTensor() # Transform the images to PyTorch tensors, normalizing pixel values to the range [0, 1], shape (channel, height, width).
-        )
-    elif args.dataset == 'CIFAR10':
-        trainset = datasets.CIFAR10(
-            root="tmp",
-            train=True,
-            download=True,
-            transform=ToTensor() # Transform the images to PyTorch tensors, normalizing pixel values to the range [0, 1], shape (channel, height, width).
-        )
-    else:
-        trainset = datasets.MNIST(
-            root="tmp",
-            train=True,
-            download=True,
-            transform=ToTensor() # Transform the images to PyTorch tensors, normalizing pixel values to the range [0, 1], shape (channel, height, width).
-        )
-
+    dataset_class = getattr(datasets, DATASET)
+    trainset = dataset_class(root="tmp", train=True, download=True, transform=ToTensor())
     # num_workers is the number of subprocesses to use for data loading. If num_workers is set to 0, the data will be loaded in the main process. 
     # If num_workers is greater than 0, that many subprocesses will be used to load the data in parallel, which can speed up data loading, especially for large datasets. 
     trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
-    
+
+    padding_mode_sift = 'border' if 'CIFAR' in DATASET else 'zeros'
+        
     # print(f"train: {len(trainloader.dataset)}")
     # train: 60000
     # print(f"trainloader: {trainloader.dataset[0][0].numel()}")
@@ -102,7 +72,7 @@ if __name__ == '__main__':
     # on a pixel-by-pixel basis. The objective is for the network to learn how to 
     # apply the dxy displacement to the original image and reconstruct it 
     # correctly in the new position.
-    crit = nn.BCEWithLogitsLoss() 
+    crit = nn.MSELoss() if 'CIFAR' in DATASET else nn.BCEWithLogitsLoss() 
     optimizer = optim.Adam(capL.parameters(), lr)  
     
     # print(capL)
@@ -122,7 +92,7 @@ if __name__ == '__main__':
     # dxy_fake = torch.zeros((BATCH_SIZE, 2)).to(DEVICE) 
     # img_fake = torch.zeros((BATCH_SIZE, 1, 28, 28)).to(DEVICE)
     # summary(capL, input_data=[img_fake, dxy_fake])
-    
+    poses = []
     loss_history = [] # save the loss for each iteration to plot later
 
     # Initialize dictionaries to store gradient flow data for plotting
@@ -134,61 +104,28 @@ if __name__ == '__main__':
     'xy_gen': [],
     'gen_out': []
 }
-    
+   
     len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
-        for i, (inp, _) in enumerate(trainloader): # 469 batches por época
-            # print(f"inp shape: {inp.shape}, inp dtype: {inp.dtype} inp length: {len(inp)} inp size: {inp.size()}") 
-            # inp shape: torch.Size([64, 1, 28, 28]), inp dtype: torch.float32 inp length: 64 inp size: torch.Size([64, 1, 28, 28])
-
-            #print(i, end='\r') # 0 1 2 3 4 ... 468
-            # print(f"{inp.shape} {inp.dtype}") 16, 1, 28, 28 torch.float32
-            # print(f"{inp.numpy().shape} {inp.numpy().dtype}") (16, 1, 28, 28) float32
-            inp = inp.to(DEVICE)
-            target, dxy = BatchShift_torch(inp, [-8, 8], DEVICE)   # tudo na GPU
-            #target_np, dxy = BatchShift(inp.numpy().copy(), [-4,4])
-            #target = torch.from_numpy(target_np).float().view(-1, 1, 28, 28).to(DEVICE)
-            # target -> imagens deslocadas 
-            # dxy -> deslocamentos aplicados a cada imagem do lote
-            #dxy = torch.from_numpy(dxy).float().to(DEVICE)
-
-
+        for i, (inp, _) in enumerate(trainloader):
+            
             optimizer.zero_grad()
-            out = None
-            R = None
-            # inp -> batch of images
-            # dxy -> batch of transformations
 
-            # if i == mid: # na metade da época, vamos visualizar as poses médias (R) das cápsulas
-            #     out, R = capL(inp, dxy, sep = True)
-            #     poses = R.detach().cpu().numpy()
+            # inp shape: torch.Size([64, 1, 28, 28])
+            inp = inp.to(DEVICE)
+            target, dxy = BatchShift_torch(inp, [-4, 4], padding_mode_sift, DEVICE)
+            # dxy -> batch of transformations [64, 2]
+            # target -> batch of shifted images [64, 1, 28, 28]
 
-            #     # 2. Extrai as coordenadas x e y
-            #     x = poses[:, 0]
-            #     y = poses[:, 1]
+            if i != len_batch_size:
+                out = capL(inp, dxy) 
+            else: 
+                out, poses, pose_prob = capL(inp, dxy, sep = True)
 
-            #     # 3. Cria o gráfico
-            #     plt.figure(figsize=(8, 6))
-            #     plt.scatter(x, y, alpha=0.6, edgecolors='w', label='Poses Médias (R)')
-
-            #     # 4. Adiciona referências visuais
-            #     plt.axhline(0, color='black', lw=1, ls='--') # Eixo central X
-            #     plt.axvline(0, color='black', lw=1, ls='--') # Eixo central Y
-
-            #     plt.title("Distribuição das Poses Médias no Batch")
-            #     plt.xlabel("Coordenada X")
-            #     plt.ylabel("Coordenada Y")
-            #     plt.grid(True, alpha=0.3)
-            #     plt.legend()
-            #     plt.show()
-            # else:
-
-            out = capL(inp, dxy)
-            # out -> batch of reconstructed images [64, 784]
+            # out -> batch of reconstructed images [64, 784] without sigmoid 
             # R -> batch of poses (x,y) [64, 2]
-
-            out = out.view(-1, IMG_C, IMG_H, IMG_W) # reshape the output to match the original image shape
+            out = out.view(-1, IMG_C, IMG_H, IMG_W)
             # out -> batch of reconstructed images [64, 1, 28, 28]
             # target -> batch of shifted images [64, 1, 28, 28]
             loss = crit(out, target)
@@ -207,7 +144,7 @@ if __name__ == '__main__':
 
             # Save the input, output and target images for the first and last batch of each epoch
             if (i == 0 or i == len_batch_size): 
-                Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES)
+                Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
 
             # MEAN GRADIENTS FOR EACH CAPSULE
             grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
@@ -244,4 +181,6 @@ if __name__ == '__main__':
         Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS)
         # grad_flow_caps = {}  # if you want a graph for each epoch, reset the gradients after plotting
         # grad_flow_layers = {'inp_rec': [], 'rec_xy': [], 'rec_prob': [], 'xy_gen': [], 'gen_out': []}
+
+        # Plot_Poses(poses, RESULTS_DIR_POSES, epoch)
     torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 

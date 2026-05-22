@@ -1,7 +1,7 @@
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-from image_utils import BatchShift, BatchShift_torch, Show_Batch
+from aux_functions import BatchShift, BatchShift_torch, Show_Batch
 import torch
 import torchvision
 from CapLayer import CapLayer
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     download=True,
     transform=ToTensor() # Transforma as imagens em tensores PyTorch, normalizando os valores dos pixels para o intervalo [0, 1], shape (canal, altura, largura).
 )
-    testeloader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
+    testeloader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
     capL_test = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, GEN_DIM)
     capL_test = capL_test.to(device)
     #print(capL_test)

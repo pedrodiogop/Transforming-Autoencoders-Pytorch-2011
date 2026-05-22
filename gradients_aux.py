@@ -55,7 +55,6 @@ def Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR):
 
     axes[-1].set_xlabel('Batch')
     plt.tight_layout()
-    os.makedirs(RESULTS_DIR, exist_ok=True)
     plt.savefig(f'{RESULTS_DIR}/grad_flow_capsules_ep_{epoch+1:03d}.png',
                 dpi=150, bbox_inches='tight')
     plt.close(fig)
@@ -106,7 +105,6 @@ def Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR):
     ax.axhline(1e-6, color='red', linestyle='--', linewidth=0.8, label='vanishing')
 
     plt.tight_layout()
-    os.makedirs(RESULTS_DIR, exist_ok=True)
     plt.savefig(f'{RESULTS_DIR}/grad_flow_layers_ep_{epoch+1:03d}.png',
                 dpi=150, bbox_inches='tight')
     plt.close(fig)
