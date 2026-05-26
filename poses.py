@@ -118,7 +118,7 @@ if __name__ == '__main__':
     padding_mode_sift = 'border' if 'CIFAR' in DATASET else 'zeros'
 
     POSES_DIR = 'Poses/Comparison_Original_Shift'
-    #POSES_DIR_Images = f'{POSES_DIR}/Images'
+    POSES_DIR_Images = f'{POSES_DIR}/Images'
 
     os.makedirs(POSES_DIR_Images, exist_ok=True)
 

@@ -5,7 +5,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from aux_functions import Get_Args, Plot_Poses, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss
+from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative
 from gradients_aux import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
@@ -38,6 +38,7 @@ if __name__ == '__main__':
     # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR}/Gradients_log.txt'
     RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR}/Mean_Gradients_by_Capsule'
     RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR}/Mean_Gradients_by_Layer'
+    RESULTS_DIR_GENERATIVE = f'{RESULTS_DIR}/Generative_Plot'
 
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -46,14 +47,19 @@ if __name__ == '__main__':
     os.makedirs(RESULTS_DIR_POSES, exist_ok=True) # save poses for each epoch
     os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
     os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
+    os.makedirs(RESULTS_DIR_GENERATIVE, exist_ok=True)
 
     dataset_class = getattr(datasets, DATASET)
     trainset = dataset_class(root="tmp", train=True, download=True, transform=ToTensor())
     # num_workers is the number of subprocesses to use for data loading. If num_workers is set to 0, the data will be loaded in the main process. 
     # If num_workers is greater than 0, that many subprocesses will be used to load the data in parallel, which can speed up data loading, especially for large datasets. 
     trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    
+    if 'CIFAR' in DATASET:
+        padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
+    else:
+        padding_mode_sift = 'zeros'
 
-    padding_mode_sift = 'border' if 'CIFAR' in DATASET else 'zeros'
         
     # print(f"train: {len(trainloader.dataset)}")
     # train: 60000
@@ -114,13 +120,13 @@ if __name__ == '__main__':
 
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE)
-            target, dxy = BatchShift_torch(inp, [-4, 4], padding_mode_sift, DEVICE)
+            target, dxy = BatchShift_torch(inp, [-1, 1], padding_mode_sift, DEVICE)
             # dxy -> batch of transformations [64, 2]
             # target -> batch of shifted images [64, 1, 28, 28]
 
             if i != len_batch_size:
                 out = capL(inp, dxy) 
-            else: 
+            else: # To Plot all poses
                 out, poses, pose_prob = capL(inp, dxy, sep = True)
 
             # out -> batch of reconstructed images [64, 784] without sigmoid 
@@ -151,26 +157,7 @@ if __name__ == '__main__':
             # MEAN GRADIENTS FOR EACH LAYER 
             grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
 
-        fig, axes = plt.subplots(9, 10, figsize=(12,9))
-        fig.suptitle(f'Pesos Generativos rc — Época {epoch+1}', fontsize=6)
-        for k in range(9):  # primeiras 9 cápsulas
-            weights = capL.caps[k].gen_out.weight.data.cpu()  # (784, 50)
-            for p in range(10):  # primeiras 10 dimensões gerativas    
-                ax = axes[k][p]
-                if IMG_C == 1:
-                    ax.imshow(weights[:, p].view(IMG_H, IMG_W), cmap='gray')
-                else:
-                    w = weights[:, p].view(IMG_H, IMG_W, IMG_C)
-                    w = (w - w.min()) / (w.max() - w.min())  # normaliza para [0,1]
-                    ax.imshow(w.numpy())
-                ax.axis('off')
-                if k == 0:
-                    ax.set_title(f'Gen {p}', fontsize=4)
-        plt.tight_layout()
-        os.makedirs('Imagens_Pesos_Generativos', exist_ok=True)
-        plt.savefig(f'Imagens_Pesos_Generativos/pesos_rc_ep_{epoch+1}.png')
-        plt.close(fig)
-
+        PlotGenrative(epoch, capL, IMG_C, IMG_H, IMG_W, RESULTS_DIR_GENERATIVE, num_capsule= NUM_CAPS, num_generative=CAP_GEN)
     
         print(f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(time.time() - start_time):.2f} seconds; Loss: {current_loss:.4f}") 
         

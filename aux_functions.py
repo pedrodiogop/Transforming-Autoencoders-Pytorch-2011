@@ -27,13 +27,50 @@ import torch.nn.functional as F
 #     ax.legend()
 #     plt.savefig(f'{RESULTS_DIR_POSES}/Poses_Ep_{epoch+1:03d}.png', dpi=150, bbox_inches='tight')
 #     plt.close(fig)
+
+def Get_Args():
+    parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
+    
+    parser.add_argument('--device',     type=str,   default='mps',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
+    parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
+    parser.add_argument('--epochs',     type=int,   default=40,     help='Number of epochs to train')
+    parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
+    parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
+    parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
+    parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
+    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10".')
+    
+    return parser.parse_args()
+
+def PlotGenrative(epoch, capL, img_c, img_h, img_w, RESULTS_DIR_GENERATIVE, num_capsule, num_generative):
+            # Tamanho dinâmico baseado na grelha
+            fig_w = num_generative * 1.2
+            fig_h = num_capsule * 1.2
+            fig, axes = plt.subplots(num_capsule, num_generative, figsize=(fig_w, fig_h))
+            fig.suptitle(f'Pesos Generativos gen_out — Época {epoch+1}', fontsize=6)
+            for k in range(num_capsule): # capsules 
+                weights = capL.caps[k].gen_out.weight.data.cpu() 
+                for p in range(num_generative):  # Generative diemnsion    
+                    ax = axes[k][p]
+                    if img_c == 1:
+                        ax.imshow(weights[:, p].view(img_h, img_w), cmap='gray')
+                    else: # Cifar
+                        w = weights[:, p].view(img_h, img_w, img_c)
+                        w = (w - w.min()) / (w.max() - w.min())  # normaliza para [0,1]
+                        ax.imshow(w.numpy())
+                    ax.axis('off')
+                    if k == 0:
+                        ax.set_title(f'Generative {p}', fontsize=4)
+            plt.subplots_adjust(wspace=0.05, hspace=0.05)  # em vez de tight_layout
+            plt.savefig(f'{RESULTS_DIR_GENERATIVE}/weight_gen_out_epoch_{epoch+1}.png', dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
     
 def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window):
         
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(loss_history, label='Loss', linewidth=0.8)
             
-    # Média móvel para ver a tendência
     if len(loss_history) >= window: # The real trend, without the noise.
         moving_avg = np.convolve(loss_history, np.ones(window)/window, mode='valid')
         ax.plot(range(window-1, len(loss_history)), moving_avg, 
@@ -83,21 +120,6 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, padding_mode_sift, device):
                              padding_mode=padding_mode_sift, align_corners=False)
 
     return shifted, R
-
-def Get_Args():
-    parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
-    
-    parser.add_argument('--device',     type=str,   default='mps',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
-    parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
-    parser.add_argument('--epochs',     type=int,   default=15,     help='Number of epochs to train')
-    parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
-    parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
-    parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
-    parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
-    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10".')
-    
-    return parser.parse_args()
-
 
 # Função que guarda as imagens originais e deslocadas para estudo! 
 # def save_shifted_images(img, rimg, epoch, batch_idx, img_idx):
