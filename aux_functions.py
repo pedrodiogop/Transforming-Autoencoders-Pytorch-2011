@@ -90,10 +90,14 @@ def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window):
 
 def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
     inp = inp.detach().cpu()
-    target = target.detach().cpu()
     out = torch.sigmoid(out).detach().cpu() if 'CIFAR' not in DATASET else out.clamp(0, 1).detach().cpu()
 
-    batch = torch.cat([inp, target, out], dim=3)
+    if target is not False and target is not None:
+        target = target.detach().cpu()
+        batch = torch.cat([inp, target, out], dim=3)
+    else: 
+        batch = torch.cat([inp, out], dim=3)
+         
     im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=True, padding=2, pad_value=0.5)
     img = np.transpose(im_tensor.numpy(), (1, 2, 0))
     
