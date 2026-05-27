@@ -5,7 +5,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative
+from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt
 from gradients_aux import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
@@ -33,9 +33,9 @@ if __name__ == '__main__':
 
     # Define the directory to save results
     RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_pose->{LEN_POSE}'
-    RESULTS_DIR_LOSS = f'{RESULTS_DIR}/Image_Loss'
+    RESULTS_DIR_LOSS = f'{RESULTS_DIR}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR}/In_Out_Target_Images'
-    RESULTS_DIR_POSES = f'{RESULTS_DIR}/Poses'
+    # RESULTS_DIR_POSES = f'{RESULTS_DIR}/Poses'
     # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR}/Gradients_log.txt'
     RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR}/Mean_Gradients_by_Capsule'
     RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR}/Mean_Gradients_by_Layer'
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     os.makedirs(RESULTS_DIR, exist_ok=True)
     os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
     os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
-    os.makedirs(RESULTS_DIR_POSES, exist_ok=True) # save poses for each epoch
+    # os.makedirs(RESULTS_DIR_POSES, exist_ok=True) # save poses for each epoch
     os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
     os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
     os.makedirs(RESULTS_DIR_GENERATIVE, exist_ok=True)
@@ -173,11 +173,14 @@ if __name__ == '__main__':
             grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
 
         PlotGenrative(epoch, capL, IMG_C, IMG_H, IMG_W, RESULTS_DIR_GENERATIVE, num_capsule= NUM_CAPS, num_generative=CAP_GEN)
-    
-        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(time.time() - start_time):.2f} seconds; Loss: {current_loss:.4f}") 
+        
+        diff_time = time.time() - start_time
+        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(diff_time):.2f} seconds; Loss: {current_loss:.4f}") 
+        Loss_Txt(epoch, NUM_EPOCHS, diff_time, current_loss, RESULTS_DIR_LOSS)
         
         # Save_Gradients(capL, epoch, RESULTS_DIR_GRADIENTS) # For Future Works 
-        Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window = 50)
+        #Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window = 50)
+        Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS)
 
         Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES)
         Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS)

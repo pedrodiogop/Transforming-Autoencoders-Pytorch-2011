@@ -68,15 +68,15 @@ def PlotGenrative(epoch, capL, img_c, img_h, img_w, RESULTS_DIR_GENERATIVE, num_
             plt.close(fig)
 
     
-def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window):
+def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS):
         
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(loss_history, label='Loss', linewidth=0.8)
             
-    if len(loss_history) >= window: # The real trend, without the noise.
-        moving_avg = np.convolve(loss_history, np.ones(window)/window, mode='valid')
-        ax.plot(range(window-1, len(loss_history)), moving_avg, 
-                label=f'Média móvel ({window})', color='red', linewidth=1.5)
+    # if len(loss_history) >= window: # The real trend, without the noise.
+    #     moving_avg = np.convolve(loss_history, np.ones(window)/window, mode='valid')
+    #     ax.plot(range(window-1, len(loss_history)), moving_avg, 
+    #             label=f'Média móvel ({window})', color='red', linewidth=1.5)
             
     ax.set_xlabel('Iteração')
     ax.set_ylabel('Loss')
@@ -126,6 +126,12 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, padding_mode_sift, device):
                              padding_mode=padding_mode_sift, align_corners=False)
 
     return shifted, R
+
+def Loss_Txt(epoch, NUM_EPOCHS, time, current_loss, RESULTS_DIR_LOSS): 
+     text = f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {time:.2f} seconds; Loss: {current_loss:.4f}\n"
+     with open(f'{RESULTS_DIR_LOSS}/Log_Treino.txt', "a", encoding="utf-8") as f:
+          f.write(text)
+
 
 # Função que guarda as imagens originais e deslocadas para estudo! 
 # def save_shifted_images(img, rimg, epoch, batch_idx, img_idx):
