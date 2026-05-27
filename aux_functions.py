@@ -39,6 +39,8 @@ def Get_Args():
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
     parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10".')
+    parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
+
     
     return parser.parse_args()
 

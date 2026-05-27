@@ -4,12 +4,12 @@ import torch
 
 # Capsule(784, 40, 40)
 class Capsule(nn.Module):
-    def __init__(self, input_dim, cap_rec, cap_gen, xy_dim = 2):
+    def __init__(self, input_dim, cap_rec, cap_gen, len_pose):
         super(Capsule, self).__init__()
         self.inpdim = input_dim
         self.cap_rec = cap_rec
         self.cap_gen = cap_gen
-        self.cap_xy = xy_dim
+        self.cap_xy = len_pose
         # 28*28 -> 40 recognition units 
         self.inp_rec = nn.Linear(self.inpdim, self.cap_rec)
 
@@ -39,7 +39,7 @@ class Capsule(nn.Module):
         # print(delxy.size()) 
         # torch.Size([64, 2])
 
-        cap = F.relu(self.inp_rec(X))  
+        cap = F.leaky_relu(self.inp_rec(X), negative_slope=0.01) 
         # print('cap', cap.size()) 
         # cap torch.Size([64, 40])
 
@@ -53,7 +53,7 @@ class Capsule(nn.Module):
         
         # print('x_y + del', (x_y + delxy).size()) 
         # x_y + del torch.Size([64, 2])   
-        gen = F.relu(self.xy_gen(x_y + delxy)) 
+        gen = F.leaky_relu(self.xy_gen(x_y + delxy), negative_slope=0.01)
         # print('gen', gen.size()) 
         # gen torch.Size([64, 40])
 

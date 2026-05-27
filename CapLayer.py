@@ -7,11 +7,11 @@ import torch.nn.functional as F
 
 class CapLayer(nn.Module):
     # CapLayer(25, 784, 40, 40)
-    def __init__(self, num_caps, in_dim, cap_rec, cap_gen):
+    def __init__(self, num_caps, in_dim, cap_rec, cap_gen, len_pose):
         super(CapLayer, self).__init__()
         self.caps = nn.ModuleList([
                 # Capsule(784, 40, 40)
-                Capsule(in_dim, cap_rec, cap_gen)
+                Capsule(in_dim, cap_rec, cap_gen, len_pose)
                 for _ in range(num_caps)])
         # print(f"{len(self.caps)} capsules created") 
         # 25 capsules created

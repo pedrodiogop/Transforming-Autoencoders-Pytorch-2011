@@ -26,12 +26,13 @@ if __name__ == '__main__':
     CAP_REC = args.cap_rec # encode the image
     CAP_GEN = args.cap_gen # decode the image
     DATASET = args.dataset
+    LEN_POSE = args.len_pose
 
     lr = args.lr
     best_loss = 100.0
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_pose->{LEN_POSE}'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR}/Image_Loss'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR}/In_Out_Target_Images'
     RESULTS_DIR_POSES = f'{RESULTS_DIR}/Poses'
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     IMG_C, IMG_H, IMG_W = sample.shape
 
     # CapLayer(25, 784, 40, 40)
-    capL = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_REC)
+    capL = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_REC, LEN_POSE)
     capL = capL.to(DEVICE)
     
     # BCEWithLogitsLoss compares the reconstructed image with the SHIFTED image (target)
@@ -110,7 +111,8 @@ if __name__ == '__main__':
     'xy_gen': [],
     'gen_out': []
 }
-   
+    # Analyze only image reconstruction without displacement.
+    dxy = torch.zeros(size=(BATCH_SIZE, LEN_POSE), device=DEVICE, dtype=torch.float32) 
     len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
@@ -120,21 +122,39 @@ if __name__ == '__main__':
 
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE)
-            target, dxy = BatchShift_torch(inp, [-1, 1], padding_mode_sift, DEVICE)
+
+            if LEN_POSE == 2:
+                target, dxy = BatchShift_torch(inp, [-1, 1], padding_mode_sift, DEVICE)
+                out = capL(inp, dxy)
+                out = out.view(-1, IMG_C, IMG_H, IMG_W)
+                loss = crit(out, target)
+                # Save the input, output and target images for the first and last batch of each epoch
+                if i == len_batch_size: 
+                    Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
+            else:
+                out = capL(inp, dxy)
+                out = out.view(-1, IMG_C, IMG_H, IMG_W)
+                loss = crit(out, inp)
+                # Save the input, output and target images for the first and last batch of each epoch
+                if i == len_batch_size: 
+                    Save_In_Out_Target_Images(inp, inp, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
+
             # dxy -> batch of transformations [64, 2]
             # target -> batch of shifted images [64, 1, 28, 28]
 
-            if i != len_batch_size:
-                out = capL(inp, dxy) 
-            else: # To Plot all poses
-                out, poses, pose_prob = capL(inp, dxy, sep = True)
+
+            # if i != len_batch_size:
+            # out = capL(inp) 
+            # else: # To Plot all poses
+            #    out, poses, pose_prob = capL(inp, dxy, sep = True)
 
             # out -> batch of reconstructed images [64, 784] without sigmoid 
             # R -> batch of poses (x,y) [64, 2]
-            out = out.view(-1, IMG_C, IMG_H, IMG_W)
+            # out = out.view(-1, IMG_C, IMG_H, IMG_W)
             # out -> batch of reconstructed images [64, 1, 28, 28]
             # target -> batch of shifted images [64, 1, 28, 28]
-            loss = crit(out, target)
+            
+
             loss.backward()
             optimizer.step()
             current_loss = loss.item()
@@ -147,11 +167,6 @@ if __name__ == '__main__':
             if current_loss < best_loss:
                 best_loss = current_loss
                 best_state = {k: v.clone() for k, v in capL.state_dict().items()}
-
-            # Save the input, output and target images for the first and last batch of each epoch
-            if (i == 0 or i == len_batch_size): 
-                Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
-
             # MEAN GRADIENTS FOR EACH CAPSULE
             grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
             # MEAN GRADIENTS FOR EACH LAYER 
