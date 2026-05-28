@@ -32,14 +32,15 @@ if __name__ == '__main__':
     best_loss = 100.0
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_pose->{LEN_POSE}'
-    RESULTS_DIR_LOSS = f'{RESULTS_DIR}/Loss_Image_TXT'
-    RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR}/In_Out_Target_Images'
-    # RESULTS_DIR_POSES = f'{RESULTS_DIR}/Poses'
-    # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR}/Gradients_log.txt'
-    RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR}/Mean_Gradients_by_Capsule'
-    RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR}/Mean_Gradients_by_Layer'
-    RESULTS_DIR_GENERATIVE = f'{RESULTS_DIR}/Generative_Plot'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_{LEN_POSE}'
+    RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
+    RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
+    RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'
+    # RESULTS_DIR_POSES = f'{RESULTS_DIR_TRAIN}/Poses'
+    # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR_TRAIN}/Gradients_log.txt'
+    RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Capsule'
+    RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Layer'
+    RESULTS_DIR_GENERATIVE = f'{RESULTS_DIR_TRAIN}/Generative_Plot'
 
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -72,7 +73,7 @@ if __name__ == '__main__':
     IMG_C, IMG_H, IMG_W = sample.shape
 
     # CapLayer(25, 784, 40, 40)
-    capL = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_REC, LEN_POSE)
+    capL = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_GEN, LEN_POSE)
     capL = capL.to(DEVICE)
     
     # BCEWithLogitsLoss compares the reconstructed image with the SHIFTED image (target)
@@ -128,14 +129,16 @@ if __name__ == '__main__':
                 out = capL(inp, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)
-                # Save the input, output and target images for the first and last batch of each epoch
+                # Save the input, output and target images for the first
                 if i == len_batch_size: 
                     Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
             else: # Analyze only image reconstruction without displacement.
+                if len(trainloader) - 1 == i: # the last batch_size can be smaller than the others
+                    dxy = torch.zeros(size=(inp.shape[0], LEN_POSE), device=DEVICE, dtype=torch.float32) 
                 out = capL(inp, dxy)
-                out = out.view(-1, IMG_C, IMG_H, IMG_W)
+                out = out.view(-1, IMG_C, IMG_H, IMG_W) 
                 loss = crit(out, inp)
-                # Save the input, output and target images for the first and last batch of each epoch
+                # Save the input, output images for the first
                 if i == len_batch_size: 
                     Save_In_Out_Target_Images(inp, False, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
 
