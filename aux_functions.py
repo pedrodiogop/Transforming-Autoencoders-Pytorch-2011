@@ -38,7 +38,7 @@ def Get_Args():
     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
-    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10".')
+    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10". If you want to test the model using personal data or custom set this variable to "Mine", Images must be placed in "Mine_Dataset" folder where the model exists')
     parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
 
     
@@ -90,7 +90,7 @@ def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS):
 
 def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
     inp = inp.detach().cpu()
-    out = torch.sigmoid(out).detach().cpu() if 'CIFAR' not in DATASET else out.clamp(0, 1).detach().cpu()
+    out = torch.sigmoid(out).detach().cpu() if ('CIFAR' not in DATASET and 'Mine' not in DATASET) else out.clamp(0, 1).detach().cpu()
 
     if target is not False and target is not None:
         target = target.detach().cpu()
@@ -98,8 +98,12 @@ def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TAR
     else: 
         batch = torch.cat([inp, out], dim=3)
          
-    im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=True, padding=2, pad_value=0.5)
+    im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=False, padding=2, pad_value=0.5)
+    # To have the real values we need to set normalize=False. 
+    # This way the reconstrution image is not manipulated from the original
+    # im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=True, padding=2, pad_value=0.5) 
     img = np.transpose(im_tensor.numpy(), (1, 2, 0))
+    # img = np.clip(img, 0, 1) 
     
     diretorio = f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES}/Epoch_{epoch:03d}'
     os.makedirs(diretorio, exist_ok=True)
