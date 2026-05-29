@@ -5,24 +5,35 @@ This project is based on the research presented in the following paper:
     [Hinton, Geoffrey E., Alex Krizhevsky, and Sida D. Wang. "Transforming auto-encoders." International Conference on Artificial Neural Networks. Springer, Berlin, Heidelberg, 2011.](http://www.cs.toronto.edu/~fritz/absps/transauto6.pdf)
 
 Adicionar uma breve introdução ao paper, mostrar brevemente os resultados, e etc...
+Falar que foi executado num macbook M1 RAM 16 GB
+Fazemos dois estudos um para reconstução das imagens e outro para equivarience 
 
 ## Requirements
 
 ## Usage
 
+
+### Scripts and Folders: 
+    main.py -> Model training
+    capLayer.py -> Capsule layer
+    capsule.py -> Individual capsule
+    aux_functions.py -> auxiliary functions
+    gradients_aux.py -> gradient functions  
+    test.py -> Model testing
+    poses.py -> To trace the relationship between poses in the displaced images and the original images.
+
 ### The Default Hyper Parameters:
 | CLI Arguments | Value | Help |
 | --- | --- | --- | 
-| --device | mps | Device to use for training (e.g., "cpu", "cuda", "mps") Never tested for cuda |
-    --device -> mps (macbook)
-    --batch_size -> 64
-    --epoch -> 15
-    --num_caps -> 25 (Number of capsules)
-    --cap_rec -> 40 (encode)
-    --gen_dim -> 40 (decode)
-    --lr -> 0.001
-    --dataset -> MNIST, also accepts 'FashionMNIST' and 'CIFAR10'
-    --len_pose, if --len_pose = 2 we train the model to Equivariance Mode (with displacement). If --len_pose > 2 we train the model to Generative Reconstruction Mode (only to reconstruction the image, without displacement).
+| --device | mps | Device to use for training (e.g., "cpu", "cuda", "mps"); Never tested for cuda |
+| --batch_size | 64 | Batch size for training |
+| --epochs | 40 | Number of epochs to train |
+| --num_caps | 25 | Number of capsules |
+| --cap_rec | 40 | Capsule reconstruction dimension |
+| --cap_gen | 40 | Capsule generation dimension |
+| --lr | 0.001 | Learning rate |
+| --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test_no_displacement.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it. |
+| --len_pose | 2 | Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to image reconstruction. |
 
 ## Results 
 
@@ -51,17 +62,6 @@ Adicionar uma breve introdução ao paper, mostrar brevemente os resultados, e e
     * **Equivariance Mode (`--len_pose 2`):** Restricts the latent space strictly to $X$ and $Y$ coordinates to enforce and analyze geometric translation equivariance.
     * **Generative Reconstruction Mode (`--len_pose > 2`):** Bypasses the spatial displacement constraint to maximize the model's capacity for complex image synthesis. Used for training with the cifar10 dataset. 
 * **Evaluation**: To support the dual-mode architecture strategy, the framework includes two dedicated testing scripts, one for image reconstruction other for equivariance.
-
-
-
-## Code is divided into: 
-    main.py -> Model training
-    capLayer.py -> Capsule layer
-    capsule.py -> Individual capsule
-    aux_functions.py -> auxiliary functions
-    gradients_aux.py -> gradient functions  
-    test.py -> Model testing
-    poses.py -> To trace the relationship between poses in the displaced images and the original images.
 
 ## Running the code: 
     python3 main.py 
