@@ -11,9 +11,9 @@ Adicionar uma breve introdução ao paper, mostrar brevemente os resultados, e e
 ## Usage
 
 ### The Default Hyper Parameters:
-| Parameter | Value | CLI arguments |
+| CLI Arguments | Value | Help |
 | --- | --- | --- | 
-| Device | MPS | s |
+| --device | mps | Device to use for training (e.g., "cpu", "cuda", "mps") Never tested for cuda |
     --device -> mps (macbook)
     --batch_size -> 64
     --epoch -> 15
