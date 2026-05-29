@@ -50,6 +50,7 @@ o utilizador so precisa de correr o seguinte codigo pip install -r requirements.
 All results are saved dynamically in the folder Results with the folliwing structure:
 Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
 Inside this folder we save: 
+
     Test
         In_Out_Target_Images
         Mine_Dataset
