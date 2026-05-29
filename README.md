@@ -81,7 +81,7 @@ Para reconstrução e para equivarience
 - [x] Multi-Dataset Support: The code has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
 - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
 - [x] Added different cost functions for different databases. CIFAR -> MSELoss, Rest -> BCEWithLogitsLoss 
-- [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#folderstructure-Results).
+- [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#folder-structure-results).
 
  
 
