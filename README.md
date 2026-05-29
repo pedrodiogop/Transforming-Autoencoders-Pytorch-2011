@@ -10,10 +10,14 @@ Fazemos dois estudos um para reconstução das imagens e outro para equivarience
 
 ## Requirements
 
+Ao final correr este script pip freeze > requirements.txt e fazer os requirements 
+o utilizador so precisa de correr o seguinte codigo pip install -r requirements.txt para instalar as bibliotecas e versoes corretas
+
 ## Usage
 
 
 ### Scripts and Folders: 
+    Fazer tabela:
     main.py -> Model training
     capLayer.py -> Capsule layer
     capsule.py -> Individual capsule
@@ -21,6 +25,10 @@ Fazemos dois estudos um para reconstução das imagens e outro para equivarience
     gradients_aux.py -> gradient functions  
     test.py -> Model testing
     poses.py -> To trace the relationship between poses in the displaced images and the original images.
+
+    demostrar como se corre cada script 
+
+    
 
 ### The Default Hyper Parameters:
 | CLI Arguments | Value | Help |
@@ -34,18 +42,61 @@ Fazemos dois estudos um para reconstução das imagens e outro para equivarience
 | --lr | 0.001 | Learning rate |
 | --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test_no_displacement.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it. |
 | --len_pose | 2 | Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to image reconstruction. |
+| --size_displacement | 4 | To control the size of the displacement, if want to train just for reconstruction set this to 0 |
 
 ## Results 
 
+### Folder Structure Results
+All results are saved dynamically in the folder Results with the folliwing structure:
+Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
+Inside this folder we save: 
+    Test
+        In_Out_Target_Images
+        Mine_Dataset
+        Results_Mine_Test
+    Train
+        Generative_Plot
+        In_Out_Target_Images
+        Loss_Image_TXT
+        Mean_Gradients_by_Capsule
+        Mean_Gradients_by_Layer
+    Poses
+        Comparison_Original_Shift
+        Images
+    best_model.pth
+
+
+### Interpretabilidade
+
+## Some Annotation About The Code
+
+
 ## Model Design
+Para reconstrução e para equivarience 
+
+## To Do
+
+- [x] Added command-line arguments for all hyper parameters;
+- [x] Added comments across all scripts to help understand the code;
+- [x] Multi-Dataset Support: The code has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
+- [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
+- [x] Added different cost functions for different databases. CIFAR -> MSELoss, Rest -> BCEWithLogitsLoss 
+- [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#folderstructure-Results).
+
+ 
+
+
+
+
+
 
 ## Credits
 
-## Key Modifications:
-*   Added command-line arguments 
-*   Multi-Dataset Support: The architecture has been adapted to handle different datasets beyond the original MNIST.
-*   Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
-*   Replaced the `Sigmoid` + `BCELoss` combination with `BCEWithLogitsLoss` for more stable gradient calculation.
+The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoelacanth/TransformingAutoencoder_PyTorch)
+
+
+## Key Modifications: 
+
 *   Results are dynamically saved in a hierarchical folder structure based on the hyperparameters: Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}/. Example: Results/fashion-mnist/6_25_16_16_0.001/. Inside each folder we store: 'Image_Loss' -> A plot representing the Loss Function evolution for each epoch.
 *   Function that save the Input/Target/Output Images for comparison
 * **Gradient Analysis Plots:**
@@ -61,14 +112,9 @@ Fazemos dois estudos um para reconstução das imagens e outro para equivarience
 * **Dual-Mode Training Strategy: Equivariance vs. Reconstruction Capacity**: The architecture is highly flexible and dynamically adapts its training behavior based on the `--len_pose` hyperparameter:
     * **Equivariance Mode (`--len_pose 2`):** Restricts the latent space strictly to $X$ and $Y$ coordinates to enforce and analyze geometric translation equivariance.
     * **Generative Reconstruction Mode (`--len_pose > 2`):** Bypasses the spatial displacement constraint to maximize the model's capacity for complex image synthesis. Used for training with the cifar10 dataset. 
-* **Evaluation**: To support the dual-mode architecture strategy, the framework includes two dedicated testing scripts, one for image reconstruction other for equivariance.
-
-## Running the code: 
-    python3 main.py 
-    python3 poses.py
+* **Evaluation**: To support the dual-mode architecture strategy, the framework includes two dedicated testing scripts, one for image reconstruction "MINE" other for equivariance.
 
 
 
-The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoelacanth/TransformingAutoencoder_PyTorch)
 
 
