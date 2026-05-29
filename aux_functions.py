@@ -36,9 +36,9 @@ def Get_Args():
     parser.add_argument('--epochs',     type=int,   default=40,     help='Number of epochs to train')
     parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
-    parser.add_argument('--cap_gen',    type=int,   default=40,   help='Generation dimension')
+    parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
-    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset to use for training, only accepts "MNIST", "FashionMNIST" or "CIFAR10". If you want to test the model using personal data or custom set this variable to "Mine", Images must be placed in "Mine_Dataset" folder where the model exists')
+    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test_no_displacement.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it.')
     parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
 
     
