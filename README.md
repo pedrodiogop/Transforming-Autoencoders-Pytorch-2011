@@ -47,24 +47,26 @@ o utilizador so precisa de correr o seguinte codigo pip install -r requirements.
 ## Results 
 
 ### Folder Structure Results
-All results are saved dynamically in the folder Results with the folliwing structure:
-Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
+All results are saved dynamically in the folder 'Results' with the folliwing structure:
+
+* Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
+
 Inside this folder we save: 
 
-    Test
-        In_Out_Target_Images
-        Mine_Dataset
-        Results_Mine_Test
-    Train
-        Generative_Plot
-        In_Out_Target_Images
-        Loss_Image_TXT
-        Mean_Gradients_by_Capsule
-        Mean_Gradients_by_Layer
-    Poses
-        Comparison_Original_Shift
-        Images
-    best_model.pth
+* Test
+    * In_Out_Target_Images
+    * Mine_Dataset
+    * Results_Mine_Test
+* Train
+    * Generative_Plot
+    * In_Out_Target_Images
+    * Loss_Image_TXT
+    * Mean_Gradients_by_Capsule
+    * Mean_Gradients_by_Layer
+* Poses
+    * Comparison_Original_Shift
+    * Images
+* best_model.pth
 
 
 ### Interpretabilidade
