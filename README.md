@@ -11,8 +11,9 @@ Adicionar uma breve introdução ao paper, mostrar brevemente os resultados, e e
 ## Usage
 
 ### The Default Hyper Parameters:
-    | Parameter | Value | CLI arguments |
-    | --- | --- | --- | 
+| Parameter | Value | CLI arguments |
+| --- | --- | --- | 
+| Device | MPS | s |
     --device -> mps (macbook)
     --batch_size -> 64
     --epoch -> 15
