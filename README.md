@@ -31,8 +31,11 @@ o utilizador so precisa de correr o seguinte codigo pip install -r requirements.
 
 ### Poses & Equivariance Evaluation (`poses.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
+
 The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches.
+
     $ python3 poses.py --device cpu --dataset MNIST --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 25 --len_pose 2 --size_displacement 4
+
 [See Results](#poses--equivariance-evaluation-posespy-1).
 
     
@@ -53,9 +56,10 @@ The hyperparameters passed in the command line **must match exactly** those used
 
 ## Results 
 
-
-
 ### Poses & Equivariance Evaluation (`poses.py`)
+![Original Image vs Displacemnet Image](Results/MNIST/64_25_40_40_0.001_2_4/Test/Poses/Images_Reconstruction/original_siftRight_siftLeft_modelOriginal_modelRight_modelLeft_batch_155.png)
+
+
 
 
 ### Folder Structure Results
