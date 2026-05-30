@@ -27,12 +27,13 @@ if __name__ == '__main__':
     CAP_GEN = args.cap_gen # decode the image
     DATASET = args.dataset
     LEN_POSE = args.len_pose
+    SIZE_DISPLACEMENT = args.size_displacement
 
     lr = args.lr
     best_loss = 100.0
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_{LEN_POSE}'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_{LEN_POSE}_{SIZE_DISPLACEMENT}'
     RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'
@@ -112,8 +113,8 @@ if __name__ == '__main__':
     'xy_gen': [],
     'gen_out': []
 }
-    # Analyze only image reconstruction without displacement.
-    dxy = torch.zeros(size=(BATCH_SIZE, LEN_POSE), device=DEVICE, dtype=torch.float32) 
+
+    # dxy = torch.zeros(size=(BATCH_SIZE, LEN_POSE), device=DEVICE, dtype=torch.float32) 
     len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
@@ -124,23 +125,22 @@ if __name__ == '__main__':
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE)
 
-            if LEN_POSE == 2: # with displacement 
-                target, dxy = BatchShift_torch(inp, [-1, 1], padding_mode_sift, DEVICE)
+            if SIZE_DISPLACEMENT != 0: # with displacement 
+                target, dxy = BatchShift_torch(inp, [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT], padding_mode_sift, DEVICE, LEN_POSE)
                 out = capL(inp, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)
-                # Save the input, output and target images for the first
-                if i == len_batch_size: 
+                if i == len_batch_size: # Save the input, output images for the first
                     Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
             else: # Analyze only image reconstruction without displacement.
-                if len(trainloader) - 1 == i: # the last batch_size can be smaller than the others
-                    dxy = torch.zeros(size=(inp.shape[0], LEN_POSE), device=DEVICE, dtype=torch.float32) 
+                dxy = torch.zeros(size=(inp.shape[0], LEN_POSE), device=DEVICE, dtype=torch.float32) 
                 out = capL(inp, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W) 
                 loss = crit(out, inp)
-                # Save the input, output images for the first
-                if i == len_batch_size: 
+                if i == len_batch_size: # Save the input, output images for the first
                     Save_In_Out_Target_Images(inp, False, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
+
+
 
             # dxy -> batch of transformations [64, 2]
             # target -> batch of shifted images [64, 1, 28, 28]

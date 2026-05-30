@@ -56,8 +56,33 @@ The hyperparameters passed in the command line **must match exactly** those used
 
 ## Results 
 
+
 ### Poses & Equivariance Evaluation (`poses.py`)
-![Original Image vs Displacemnet Image](Results/MNIST/64_25_40_40_0.001_2_4/Test/Poses/Images_Reconstruction/original_siftRight_siftLeft_modelOriginal_modelRight_modelLeft_batch_155.png)
+Initially, the model was trained with displacements within the following range: (-4,4) pixels. In this test, all images were displaced exactly -4 or 4 pixels.
+
+The test image grid is organized in blocks of 6 images. For each block:
+* **Top Row:** Target images — Original, Shifted (-4 pixels), and Shifted (+4 pixels).
+* **Bottom Row:** Model Reconstructions — Reconstruction of the original, Reconstruction of the -4 shift, and Reconstruction of the +4 shift.
+
+Even though the pixel-level reconstruction of the digits is not completely flawless, the spatial translation is evident and highly accurate! This proves the model successfully learned a linear latent space for the pose: when we manually add a displacement vector ($dx$) to the latent capsule coordinates extracted from the original image, the decoder is able to precisely reconstruct the shifted object at the exact target position.
+
+![Original Image vs Sift Image](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Images_Reconstruction/original_siftRight_siftLeft_modelOriginal_modelRight_modelLeft_batch_155.png)
+
+Other analysis was the relationship between the pose estimates of the original and shifted images. Two complementary analyses were performed:
+1 — X Coordinate: the X pose of the shifted image is compared against the X pose of the original image.
+2 — Y Coordinate: the Y pose of the shifted image is compared against the Y pose of the original image, where the shift was applied exclusively to the X axis.
+A probability threshold of ≥ 0.80 was applied to filter out low-confidence capsule activations — only poses where the capsule assigned a high probability of feature presence were retained. This ensures that the analysis reflects meaningful capsule behaviour rather than noise.
+1 - X Coordinate — Pose Equivariance
+![Poses Original vs Sift Cordinate X](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/X/Pose_Equivariance_Cap02.png)
+Parallelism — parallel fit lines indicate that the capsule responds symmetrically and consistently to both directions of displacement. A rightward shift produces the same magnitude of pose change as a leftward shift.
+Slope — the slope of the fit line quantifies how much the original pose changes per unit change in the shifted pose. A slope of 1.0 indicates perfect equivariance — the capsule tracks the displacement exactly. Slopes below 1.0 indicate partial equivariance, where the capsule underestimates the displacement.
+Capsule 2 achieves slopes of 0.90 and 0.92 for +4px and -4px shifts respectively — near-perfect equivariance with strong symmetry between directions.
+
+Y Coordinate — Spatial Independence
+![Poses Original vs Sift Cordinate Y](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)
+When a horizontal shift is applied to the image, the Y coordinate of the capsule pose should remain unchanged if the two spatial dimensions are truly independent.
+Capsule 18 achieves slopes of 1.00 and 0.99 — confirming that the Y pose estimate is completely invariant to horizontal displacement. The two fit lines are nearly identical and the points concentrate tightly along the diagonal, demonstrating that the capsule learned a spatially disentangled representation where X and Y pose coordinates are orthogonal and independent.
+
 
 
 
@@ -91,7 +116,7 @@ Inside this folder we save:
 
 
 ## Model Design
-Para reconstrução e para equivarience 
+Para reconstrução e para equivarience
 
 ## To Do
 
@@ -101,6 +126,11 @@ Para reconstrução e para equivarience
 - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
 - [x] Added different cost functions for different databases. CIFAR -> MSELoss, Rest -> BCEWithLogitsLoss 
 - [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#folder-structure-results).
+- [x] POSES.
+- []  Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
+
+
+
 
  
 

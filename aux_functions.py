@@ -1,5 +1,4 @@
 import argparse
-
 from cv2 import warpAffine
 import numpy as np
 import os
@@ -40,6 +39,7 @@ def Get_Args():
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
     parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test_no_displacement.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it.')
     parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
+    parser.add_argument('--size_displacement',    type=int,   default=4, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
 
     
     return parser.parse_args()
@@ -110,10 +110,12 @@ def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TAR
     caminho = os.path.join(diretorio, f'batch_{i:05d}.png')
     plt.imsave(caminho, img)
 
-def BatchShift_torch(imbatch: torch.Tensor, dxdy, padding_mode_sift, device):
+def BatchShift_torch(imbatch: torch.Tensor, dxdy, padding_mode_sift, device, pose_dim):
 
     B, C, H, W = imbatch.shape
-    R = torch.randint(low=dxdy[0], high=dxdy[1], size=(B, 2), device=device).float()
+    R = torch.zeros(B, pose_dim, device=device, dtype=torch.float32)
+    R[:, 0] = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()  # dx
+    R[:, 1] = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()  # dy
     
     dx_norm = R[:, 0] / W 
     dy_norm = R[:, 1] / H 

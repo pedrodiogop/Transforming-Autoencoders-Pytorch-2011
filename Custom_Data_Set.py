@@ -19,13 +19,11 @@ class CustomImageDataset(Dataset):
         img_name = self.image_filenames[idx]
         img_path = os.path.join(self.folder_path, img_name)
         
-        # Carrega a imagem. L convert para Grayscale (1 canal), RGB para 3 canais
         if self.img_c == 1:
             image = Image.open(img_path).convert('L')
         else:
             image = Image.open(img_path).convert('RGB')
             
-        # Redimensiona para o tamanho que o teu modelo espera (ex: 28x28 ou 32x32)
         image = image.resize((self.img_w, self.img_h))
 
         if self.transform:

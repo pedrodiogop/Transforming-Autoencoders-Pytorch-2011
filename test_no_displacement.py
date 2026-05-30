@@ -2,7 +2,7 @@ import numpy as np
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-from aux_functions import BatchShift_torch, Get_Args, Save_In_Out_Target_Images
+from aux_functions import Get_Args, Save_In_Out_Target_Images
 from Custom_Data_Set import CustomImageDataset
 import torch
 from CapLayer import CapLayer
