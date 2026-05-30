@@ -13,10 +13,7 @@ Fazemos dois estudos um para reconstução das imagens e outro para equivarience
 Ao final correr este script pip freeze > requirements.txt e fazer os requirements 
 o utilizador so precisa de correr o seguinte codigo pip install -r requirements.txt para instalar as bibliotecas e versoes corretas
 
-## Usage
-
-
-### Scripts and Folders: 
+## Scripts and Folders: 
     Fazer tabela:
     main.py -> Model training
     capLayer.py -> Capsule layer
@@ -26,7 +23,17 @@ o utilizador so precisa de correr o seguinte codigo pip install -r requirements.
     test.py -> Model testing
     poses.py -> To trace the relationship between poses in the displaced images and the original images.
 
-    demostrar como se corre cada script 
+## Usage
+
+*Note: Running on the CPU is sometimes faster than MPS due to the data transfer overhead between memories on lightweight models.*
+
+### main.py 
+
+### Poses & Equivariance Evaluation (`poses.py`)
+> ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
+The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches.
+    $ python3 poses.py --device cpu --dataset MNIST --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 25 --len_pose 2 --size_displacement 4
+[See Results](#poses & Equivariance Evaluation (`poses.py`)).
 
     
 
@@ -45,6 +52,11 @@ o utilizador so precisa de correr o seguinte codigo pip install -r requirements.
 | --size_displacement | 4 | To control the size of the displacement, if want to train just for reconstruction set this to 0 |
 
 ## Results 
+
+
+
+### Poses & Equivariance Evaluation (`poses.py`)
+
 
 ### Folder Structure Results
 All results are saved dynamically in the folder 'Results' with the folliwing structure:
