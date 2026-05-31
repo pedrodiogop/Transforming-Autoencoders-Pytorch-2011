@@ -45,18 +45,14 @@ Inside this folder we save:
         * Images_Reconstruction: Images saved at randomly selected batches during test-time evaluation. Each image is organized in blocks of 6 images, Top row (Ground Truth): original, shifted - {SIZE_DISPLACEMENT} pixels and shifted + {SIZE_DISPLACEMENT} pixels. Bottom Row (Model Reconstructions): reconstruction of the original, reconstruction of the - {SIZE_DISPLACEMENT} pixels, and Reconstruction of the + {SIZE_DISPLACEMENT} pixels.
         * Capsule_Pose_Analysis
             * X: Analysis of the X coordinate — compares the X pose estimate of the horizontally shifted image against the X pose estimate of the original image.
-            * Y: Analysis of the Y coordinate — compares the Y pose estimate of the horizontally shifted image against the Y pose estimate of the original image.
-            
+            * Y: Analysis of the Y coordinate — compares the Y pose estimate of the horizontally shifted image against the Y pose estimate of the original image.         
 * Train
-    * Generative_Plot
-    * In_Out_Target_Images
-    * Loss_Image_TXT
-    * Mean_Gradients_by_Capsule
-    * Mean_Gradients_by_Layer
-* Poses
-    * Comparison_Original_Shift
-    * Images
-* best_model.pth
+    * Generative_Plot: For each epoch, saves one image displaying the generative weights (gen_out.weight) of all capsules. Each image is organised as a grid where each row corresponds to a capsule and each column corresponds to one generative unit — allowing visual inspection of the patterns learned by each capsule over the course of training.
+    * In_Out_Target_Images: For each epoch, saves one image from the second-to-last batch showing three columns side by side: the original input, the shifted target, and the capsule reconstruction. Allows qualitative monitoring of reconstruction quality throughout training.
+    * Loss_Image_TXT: For each epoch, saves a plot of the training loss (Y axis — Loss, X axis — iterations) including a moving average line to highlight the overall trend. Additionally saves a .txt file logging the epoch number, epoch duration in seconds, and loss value for every epoch of the full training run.
+    * Mean_Gradients_by_Capsule: For each epoch, saves one image displaying the mean absolute gradient per layer for each individual capsule across all batches. Each subplot corresponds to one capsule and shows five lines — one per layer (inp_rec, rec_xy, rec_prob, xy_gen, gen_out) — plotted against the number of iterations. Useful for detecting vanishing gradients or dead capsules at the individual level.
+    * Mean_Gradients_by_Layer: For each epoch, saves one image displaying the mean absolute gradient aggregated across all capsules, plotted per layer type against the number of iterations. Provides a global view of gradient health across the entire architecture — five lines, one per layer type.
+* best_model.pth: The model checkpoint saved during training corresponding to the lowest loss value observed across all epochs and batches. Used as the starting point for all test-time evaluations.
 
 ## Usage
 
@@ -66,19 +62,27 @@ Inside this folder we save:
 
 *Note: The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches, and the path used to load the model (`best_model.pth`) will fail.*
 
-### Main.py 
+### Training Pipeline — Loss, Capsules Gradients, Layers Gradients, Generative Weights, and Image reconstruction (`main.py`)
+
+    $ python3 main.py --device cpu --dataset MNIST --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 25 --len_pose 2 --size_displacement 4
+    
+    $ python3 main.py --device cpu --dataset CIFAR10 --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 75 --len_pose 16 --size_displacement 0
+
+[See Results](#)Link
 
 ### Poses & Equivariance Evaluation (`poses.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
+
     $ python3 poses.py --device cpu --dataset MNIST --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 25 --len_pose 2 --size_displacement 4
 
 [See Results](#poses--equivariance-evaluation-posespy-1).
 
-### Evaluation Of The Model Reconstruction (`Test.py`)
+### Evaluation Of The Model Reconstruction (`test.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
+
     $ python3 test.py --device cpu --dataset CIFAR10 --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 75 --len_pose 16 --size_displacement 0 --custom_dataset
 
-[See Results](#LINK). Adicionar link
+[See Results](#evaluation-of-the-model-reconstruction-testpy-1). Adicionar link
 
     
 
@@ -98,6 +102,72 @@ Inside this folder we save:
 | --custom_dataset | action='store_true' | Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it. |
 
 ## Results 
+
+### Training Pipeline — Loss, Capsules Gradients, Layers Gradients, Generative Weights, and Image reconstruction (`main.py`)
+
+#### MNIST
+
+##### Generative Weights
+
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Generative_Plot/weight_gen_out_epoch_1.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Generative_Plot/weight_gen_out_epoch_22.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Generative_Plot/weight_gen_out_epoch_40.png)
+
+#### Image reconstruction
+
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/In_Out_Target_Images/Epoch_000/batch_00936.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/In_Out_Target_Images/Epoch_022/batch_00936.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/In_Out_Target_Images/Epoch_039/batch_00936.png)
+
+#### Loss
+
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Loss_Image_TXT/Loss_Ep_001.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Loss_Image_TXT/Loss_Ep_040.png)
+
+#### Capsules Gradients
+
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_001.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_023.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_040.png)
+
+### Layers Gradients
+
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_001.png)
+![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_040.png)
+
+#### CIFAR10
+
+##### Generative Weights
+
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Generative_Plot/weight_gen_out_epoch_1.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Generative_Plot/weight_gen_out_epoch_125.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Generative_Plot/weight_gen_out_epoch_150.png)
+
+
+#### Image reconstruction
+
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/In_Out_Target_Images/Epoch_000/batch_00780.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/In_Out_Target_Images/Epoch_125/batch_00780.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/In_Out_Target_Images/Epoch_149/batch_00780.png)
+
+
+#### Loss
+
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Loss_Image_TXT/Loss_Ep_001.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Loss_Image_TXT/Loss_Ep_150.png)
+
+#### Capsules Gradients
+
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_001.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_125.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_150.png)
+
+
+### Layers Gradients
+
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_001.png)
+![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_150.png)
+
 
 
 ### Poses & Equivariance Evaluation (`poses.py`)
@@ -139,28 +209,23 @@ When a horizontal shift is applied to the image, the Y coordinate of the capsule
 
 Capsule 18 achieves slopes of 1.00 and 0.99 — confirming that the Y pose estimate is completely invariant to horizontal displacement. The two fit lines are nearly identical and the points concentrate tightly along the diagonal, demonstrating that the capsule learned a spatially disentangled representation where X and Y pose coordinates are orthogonal and independent.
 
-### Evaluation Of The Model Reconstruction (`Test.py`)
+### Evaluation Of The Model Reconstruction (`test.py`)
+
 The model was evaluated on two distinct test sets to assess reconstruction quality and generalisation capability beyond the training distribution.
 
 Both evaluations were performed without displacement (dxy = 0), isolating the model's ability to encode and reconstruct images independently of the equivariance mechanism.
 
+In the two examples, the left side shows the original image, and the right side shows the reconstructed image.
+
 #### CIFAR10 Test Dataset
 Reconstruction results on the official CIFAR10 test set (10,000 images). The model produces recognisable reconstructions across all 10 classes — vehicles, animals, and objects — preserving the dominant colours and overall structure of each image. 
+
 ![Image reconstruction on CIFAR10 test dataset](Results/CIFAR10/64_75_40_40_0.001_16_0/Test/In_Out_Target_Images_Without_Displacement/batch_00018.png)
 
 #### Custom Test Dataset
 Reconstruction results on a custom dataset composed of images captured on a mobile phone — entirely out-of-distribution relative to the CIFAR10 training data. Despite never having seen this type of imagery during training, the model produces coherent reconstructions that preserve the general structure and colour palette of the input images. This demonstrates that the learned capsule representations generalise beyond the training distribution.
+
 ![Reconstruction on custom dataset](Results/CIFAR10/64_75_40_40_0.001_16_0/Test/Results_Mine_Test_without_Displacement/batch_00000.png)
-
-
-
-
-
-## Model Design
-
-Para reconstrução 
-
-para equivarience
 
 ## To Do
 
@@ -174,14 +239,29 @@ para equivarience
 - [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
 - [x] Spatial Independence — Y Coordinate: verify that horizontal shifts do not affect the Y pose estimate, confirming orthogonality of the learned spatial dimensions.
 - [x] The test.py script accepts a custom dataset.
-- [ ]  Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
+- [ ] Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
+- [ ] Try to find patterns in the relationship between the results and pain using the chosen hyperparameters.
+- [ ] Analyze the results when we change the "optimizer".
+- [ ] When the pose value is greater than 2, understand what each number in the pose represents (x, y, rotation, etc.). Test this in the poses.py script.
 - [ ] Explorar e analisar relações entre a camada generative de cada capsulas com por exemplo Poses etc....
 - [ ] The results are based on images, create some metrics.
 - [ ] Adicionar um ficheiro txt, dentro diretorio onde o modelo esta guardado com a informação do modelo summary()
+- [ ] Train and test for Norb dataset
+- [ ] **Generalise to Real-World Domain-Specific Datasets** — adapt the training and evaluation pipeline to support real-world image datasets, with a particular focus on medical imaging (e.g. X-rays, MRI scans, histology slides). Evaluate whether the capsule architecture can learn meaningful pose representations and produce coherent reconstructions in high-stakes domains where interpretability and spatial equivariance are especially valuable. Key adaptations may include:
+  - Supporting greyscale and multi-channel medical image formats
+  - Handling higher resolution inputs beyond 32×32
+  - Evaluating reconstruction quality using domain-appropriate metrics 
+    such as SSIM and PSNR in addition to MSE
 - [ ] Generalise BatchShift_torch to support arbitrary pose dimensions, currently the function only applies displacement along the X and Y axes. Extend the function to generate a displacement vector R of dimension pose_dim.
 - [ ] Poses.py script on the equivarience results only produces for the X and Y axis. Adapt the code for more axis on {pose_dim}.
-
-
+- [ ] Train a model with CIFAR dataset with 1 or 2 or 3 ... and analyze the Generative_Plot for each result. In the MNIST Dataset the generative wights draw numbers, look for the same in the CIFAR10
+- [ ] In the generative_Plot there are interesting results, plotting these individual and augmented results to try to better understand the picture (CIFAR10).
+- [ ] After analyzing the images reconstructed by generative and flow capsule gradients, we were able to identify some patterns.
+- [ ] In the images resulting from the gen_out layer, we can see that there are weights that never learn! This requires changing the transformer architecture in some way to bring these weights to life.
+- [ ] After analyzing the CIFAR10 training with 16 poses and 150 epochs, we can see that gradient flow still existed and some gen_outs were waking up. We should train the model with, for example, 400 epochs to see if the gradient dies, if the generatives stop learning, or if any capsule wakes up later.
+- [ ] Pass a single image through the model, show a comparison between the original and the reconstruction. Show all images generated by the generative weights where the probability of that same capsule is greater than 0.7 (or another treshold).
+- [ ] Analyzing the gen_out of MNIST, we can see that the resulting images from the gen_out layer are drawing whole numbers. We can easily see that a gen_out is drawing a 2 or 3, etc. A study would be conducted where I analyze the model's behavior for each individual label and verify which capsules activate and what the resulting image of the generative weights is.
+- [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. Two architectural modifications are proposed and should be evaluated: 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied. 2º instead of scaling the final reconstructed image by a single scalar probability, apply the probability as a gate on the generative activations before reconstruction. 
 
 ## Credits
 
