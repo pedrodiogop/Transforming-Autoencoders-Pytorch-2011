@@ -15,37 +15,38 @@ o utilizador so precisa de correr o seguinte codigo pip install -r requirements.
 
 ## Scripts and Folders: 
 
+
+
 | Scripts | Explanation |
 | --- | --- | 
 | main.py | Training script — saves results including loss curves, generative weight visualisations, batch reconstructions, gradients flow by capsule and layer during all training phase | 
 | capLayer.py | Defines the CapLayer module — a collection of 'NUM_CAPS' independent capsules processed in parallel. | 
 | capsule.py | Defines the Capsule module — the core building block of the architecture. Each capsule contains five linear layers: a recogniser (inp_rec), a pose estimator (rec_xy), a presence probability estimator (rec_prob), a generator (xy_gen), and a reconstructor (gen_out). The forward pass encodes the input into a pose, applies the spatial displacement, and decodes back into image space. | 
 | aux_functions.py | Auxiliary functions used across scripts | 
+| gradients_aux.py | Auxiliary functions for gradient monitoring during training — accumulates the mean absolute gradient per layer across all batches, and generates two types of gradient flow plots: one organised by individual capsule (showing all five layers per capsule) and one organised by layer type (showing the mean gradient across all capsules), both using a logarithmic scale to reveal vanishing gradient behaviour. | 
 | poses.py | Test-time analysis script — loads a pretrained model and evaluates pose equivariance by comparing pose estimates of original and horizontally shifted images across all capsules. Generates scatter plots with linear fits for both X and Y coordinates also creates a comparison between original images vs. output images model. | 
 | aux_function_poses.py | Auxiliary functions used in the poses.py scripts | 
-| gradients_aux.py | Auxiliary functions for gradient monitoring during training — accumulates the mean absolute gradient per layer across all batches, and generates two types of gradient flow plots: one organised by individual capsule (showing all five layers per capsule) and one organised by layer type (showing the mean gradient across all capsules), both using a logarithmic scale to reveal vanishing gradient behaviour. | 
+| test.py | Test-time script that evaluates the model with or without applying any spatial displacement, supporting custom datasets | 
 | Custom_Data_Set.py | Defines a custom PyTorch Dataset class to load and preprocess non-standard datasets — allows the architecture to be evaluated on data beyond the built-in torchvision datasets such as MNIST and CIFAR10. | 
-| test_no_displacement.py | Test-time script that evaluates the model with or without applying any spatial displacement | 
 
-
-     -> Model training
-     -> Capsule layer
-     -> Individual capsule
-     -> auxiliary functions
-     -> gradient functions  
-     -> To trace the relationship between poses in the displaced images and the original images.
-
-
-    All results are saved dynamically in the folder 'Results' with the folliwing structure:
+All results are saved dynamically in the folder 'Results' with the folliwing structure:
 
 * Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
 
 Inside this folder we save: 
 
-* Test
-    * In_Out_Target_Images
-    * Mine_Dataset
-    * Results_Mine_Test
+* Test 
+    * Mine_Dataset: Custom Data Set 
+    * In_Out_Target_Images_With_Displacement_{size_displacement}: Images generated during test-time evaluation with a displacement in the range [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT] pixels applied to the input. Each image triplet shows the original input, the ground truth shifted target, and the capsule reconstruction side by side.
+    * In_Out_Target_Images_Without_Displacement: Images generated during test-time evaluation with zero displacement (dxy=0). Each image pair shows the original input and the capsule reconstruction, allowing assessment of pure reconstruction quality independently of the equivariance mechanism.
+    * Results_Mine_Test_With_Displacement_{size_displacement}: Images generated during test-time evaluation on the custom dataset with a displacement in the range [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT] pixels applied to the input. Each image triplet shows the original input, the ground truth shifted target, and the capsule reconstruction side by side. Allows qualitative assessment of how well the model generalises the learned equivariance to out-of-distribution data.
+    * Results_Mine_Test_Without_Displacement: Images generated during test-time evaluation on the custom dataset with zero displacement. Allows qualitative assessment of pure reconstruction quality on out-of-distribution data.
+    * Equivariance 
+        * Images_Reconstruction: Images saved at randomly selected batches during test-time evaluation. Each image is organized in blocks of 6 images, Top row (Ground Truth): original, shifted - {SIZE_DISPLACEMENT} pixels and shifted + {SIZE_DISPLACEMENT} pixels. Bottom Row (Model Reconstructions): reconstruction of the original, reconstruction of the - {SIZE_DISPLACEMENT} pixels, and Reconstruction of the + {SIZE_DISPLACEMENT} pixels.
+        * Capsule_Pose_Analysis
+            * X: Analysis of the X coordinate — compares the X pose estimate of the horizontally shifted image against the X pose estimate of the original image.
+            * Y: Analysis of the Y coordinate — compares the Y pose estimate of the horizontally shifted image against the Y pose estimate of the original image.
+            
 * Train
     * Generative_Plot
     * In_Out_Target_Images
@@ -65,7 +66,7 @@ Inside this folder we save:
 
 *Note: The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches, and the path used to load the model (`best_model.pth`) will fail.*
 
-### main.py 
+### Main.py 
 
 ### Poses & Equivariance Evaluation (`poses.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
@@ -86,9 +87,10 @@ Inside this folder we save:
 | --cap_rec | 40 | Capsule reconstruction dimension |
 | --cap_gen | 40 | Capsule generation dimension |
 | --lr | 0.001 | Learning rate |
-| --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test_no_displacement.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it. |
+| --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it. |
 | --len_pose | 2 | Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to image reconstruction. |
 | --size_displacement | 4 | To control the size of the displacement, if want to train just for reconstruction set this to 0 |
+| --custom_dataset | action='store_true' | Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it. |
 
 ## Results 
 
@@ -152,6 +154,10 @@ para equivarience
 - [ ]  Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
 - [ ] Explorar e analisar relações entre a camada generative de cada capsulas com por exemplo Poses etc....
 - [ ] The results are based on images, create some metrics.
+- [ ] Adicionar um ficheiro txt, dentro diretorio onde o modelo esta guardado com a informação do modelo summary()
+- [ ] Generalise BatchShift_torch to support arbitrary pose dimensions, currently the function only applies displacement along the X and Y axes. Extend the function to generate a displacement vector R of dimension pose_dim.
+- [ ] Poses.py script on the equivarience results only produces for the X and Y axis. Adapt the code for more axis on {pose_dim}.
+
 
 
 ## Credits
