@@ -1,5 +1,6 @@
 import argparse
 from cv2 import warpAffine
+from dateutil import parser
 import numpy as np
 import os
 import torch
@@ -37,9 +38,10 @@ def Get_Args():
     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
-    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test_no_displacement.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it.')
+    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10".')
     parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
     parser.add_argument('--size_displacement',    type=int,   default=4, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
+    parser.add_argument('--custom_dataset', action='store_true', help='Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it.')
 
     
     return parser.parse_args()

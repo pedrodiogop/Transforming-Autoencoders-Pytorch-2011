@@ -70,10 +70,15 @@ Inside this folder we save:
 
 ### Poses & Equivariance Evaluation (`poses.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
-
     $ python3 poses.py --device cpu --dataset MNIST --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 25 --len_pose 2 --size_displacement 4
 
 [See Results](#poses--equivariance-evaluation-posespy-1).
+
+### Evaluation Of The Model Reconstruction (`Test.py`)
+> ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
+    $ python3 test.py --device cpu --dataset CIFAR10 --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 75 --len_pose 16 --size_displacement 0 --custom_dataset
+
+[See Results](#LINK). Adicionar link
 
     
 
@@ -134,6 +139,23 @@ When a horizontal shift is applied to the image, the Y coordinate of the capsule
 
 Capsule 18 achieves slopes of 1.00 and 0.99 — confirming that the Y pose estimate is completely invariant to horizontal displacement. The two fit lines are nearly identical and the points concentrate tightly along the diagonal, demonstrating that the capsule learned a spatially disentangled representation where X and Y pose coordinates are orthogonal and independent.
 
+### Evaluation Of The Model Reconstruction (`Test.py`)
+The model was evaluated on two distinct test sets to assess reconstruction quality and generalisation capability beyond the training distribution.
+
+Both evaluations were performed without displacement (dxy = 0), isolating the model's ability to encode and reconstruct images independently of the equivariance mechanism.
+
+#### CIFAR10 Test Dataset
+Reconstruction results on the official CIFAR10 test set (10,000 images). The model produces recognisable reconstructions across all 10 classes — vehicles, animals, and objects — preserving the dominant colours and overall structure of each image. 
+![Image reconstruction on CIFAR10 test dataset](Results/CIFAR10/64_75_40_40_0.001_16_0/Test/In_Out_Target_Images_Without_Displacement/batch_00018.png)
+
+#### Custom Test Dataset
+Reconstruction results on a custom dataset composed of images captured on a mobile phone — entirely out-of-distribution relative to the CIFAR10 training data. Despite never having seen this type of imagery during training, the model produces coherent reconstructions that preserve the general structure and colour palette of the input images. This demonstrates that the learned capsule representations generalise beyond the training distribution.
+![Reconstruction on custom dataset](Results/CIFAR10/64_75_40_40_0.001_16_0/Test/Results_Mine_Test_without_Displacement/batch_00000.png)
+
+
+
+
+
 ## Model Design
 
 Para reconstrução 
@@ -151,6 +173,7 @@ para equivarience
 - [x] Compare the original image with model reconstruction and displacement image with model displacement image.
 - [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
 - [x] Spatial Independence — Y Coordinate: verify that horizontal shifts do not affect the Y pose estimate, confirming orthogonality of the learned spatial dimensions.
+- [x] The test.py script accepts a custom dataset.
 - [ ]  Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
 - [ ] Explorar e analisar relações entre a camada generative de cada capsulas com por exemplo Poses etc....
 - [ ] The results are based on images, create some metrics.
