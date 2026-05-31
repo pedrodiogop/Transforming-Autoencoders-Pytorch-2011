@@ -14,25 +14,61 @@ Ao final correr este script pip freeze > requirements.txt e fazer os requirement
 o utilizador so precisa de correr o seguinte codigo pip install -r requirements.txt para instalar as bibliotecas e versoes corretas
 
 ## Scripts and Folders: 
-    Fazer tabela:
-    main.py -> Model training
-    capLayer.py -> Capsule layer
-    capsule.py -> Individual capsule
-    aux_functions.py -> auxiliary functions
-    gradients_aux.py -> gradient functions  
-    test.py -> Model testing
-    poses.py -> To trace the relationship between poses in the displaced images and the original images.
+
+| Scripts | Explanation |
+| --- | --- | 
+| main.py | Training script — saves results including loss curves, generative weight visualisations, batch reconstructions, gradients flow by capsule and layer during all training phase | 
+| capLayer.py | Defines the CapLayer module — a collection of 'NUM_CAPS' independent capsules processed in parallel. | 
+| capsule.py | Defines the Capsule module — the core building block of the architecture. Each capsule contains five linear layers: a recogniser (inp_rec), a pose estimator (rec_xy), a presence probability estimator (rec_prob), a generator (xy_gen), and a reconstructor (gen_out). The forward pass encodes the input into a pose, applies the spatial displacement, and decodes back into image space. | 
+| aux_functions.py | Auxiliary functions used across scripts | 
+| poses.py | Test-time analysis script — loads a pretrained model and evaluates pose equivariance by comparing pose estimates of original and horizontally shifted images across all capsules. Generates scatter plots with linear fits for both X and Y coordinates also creates a comparison between original images vs. output images model. | 
+| aux_function_poses.py | Auxiliary functions used in the poses.py scripts | 
+| gradients_aux.py | Auxiliary functions for gradient monitoring during training — accumulates the mean absolute gradient per layer across all batches, and generates two types of gradient flow plots: one organised by individual capsule (showing all five layers per capsule) and one organised by layer type (showing the mean gradient across all capsules), both using a logarithmic scale to reveal vanishing gradient behaviour. | 
+| Custom_Data_Set.py | Defines a custom PyTorch Dataset class to load and preprocess non-standard datasets — allows the architecture to be evaluated on data beyond the built-in torchvision datasets such as MNIST and CIFAR10. | 
+| test_no_displacement.py | Test-time script that evaluates the model with or without applying any spatial displacement | 
+
+
+     -> Model training
+     -> Capsule layer
+     -> Individual capsule
+     -> auxiliary functions
+     -> gradient functions  
+     -> To trace the relationship between poses in the displaced images and the original images.
+
+
+    All results are saved dynamically in the folder 'Results' with the folliwing structure:
+
+* Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
+
+Inside this folder we save: 
+
+* Test
+    * In_Out_Target_Images
+    * Mine_Dataset
+    * Results_Mine_Test
+* Train
+    * Generative_Plot
+    * In_Out_Target_Images
+    * Loss_Image_TXT
+    * Mean_Gradients_by_Capsule
+    * Mean_Gradients_by_Layer
+* Poses
+    * Comparison_Original_Shift
+    * Images
+* best_model.pth
 
 ## Usage
 
 *Note: Running on the CPU is sometimes faster than MPS due to the data transfer overhead between memories on lightweight models.*
 
+*Note: The command shown below is the exact one used to generate the results demonstrated below. Feel free to train and test the model with different hyperparameters!*
+
+*Note: The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches, and the path used to load the model (`best_model.pth`) will fail.*
+
 ### main.py 
 
 ### Poses & Equivariance Evaluation (`poses.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
-
-The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches.
 
     $ python3 poses.py --device cpu --dataset MNIST --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 25 --len_pose 2 --size_displacement 4
 
@@ -64,9 +100,9 @@ The test image grid is organized in blocks of 6 images. For each block:
 * **Top Row:** Target images — Original, Shifted (-4 pixels), and Shifted (+4 pixels).
 * **Bottom Row:** Model Reconstructions — Reconstruction of the original, Reconstruction of the -4 shift, and Reconstruction of the +4 shift.
 
-Even though the pixel-level reconstruction of the digits is not completely flawless, the spatial translation is evident and highly accurate! This proves the model successfully learned a linear latent space for the pose: when we manually add a displacement vector ($dx$) to the latent capsule coordinates extracted from the original image, the decoder is able to precisely reconstruct the shifted object at the exact target position.
-
 ![Original Image vs Sift Image](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Images_Reconstruction/original_siftRight_siftLeft_modelOriginal_modelRight_modelLeft_batch_155.png)
+
+Even though the pixel-level reconstruction of the digits is not completely flawless, the spatial translation is evident and highly accurate! This proves the model successfully learned a linear latent space for the pose: when we manually add a displacement vector ($dx$) to the latent capsule coordinates extracted from the original image, the decoder is able to precisely reconstruct the shifted object at the exact target position.
 
 ################################
 
@@ -88,7 +124,7 @@ Slope — the slope of the fit line quantifies how much the original pose change
 
 Capsule 2 achieves slopes of 0.90 and 0.92 for +4px and -4px shifts respectively — near-perfect equivariance with strong symmetry between directions.
 
-Y Coordinate — Spatial Independence
+2 - Y Coordinate — Spatial Independence
 
 ![Poses Original vs Sift Cordinate Y](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)
 
@@ -96,37 +132,11 @@ When a horizontal shift is applied to the image, the Y coordinate of the capsule
 
 Capsule 18 achieves slopes of 1.00 and 0.99 — confirming that the Y pose estimate is completely invariant to horizontal displacement. The two fit lines are nearly identical and the points concentrate tightly along the diagonal, demonstrating that the capsule learned a spatially disentangled representation where X and Y pose coordinates are orthogonal and independent.
 
-
-### Folder Structure Results
-All results are saved dynamically in the folder 'Results' with the folliwing structure:
-
-* Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}_{len_pose}_{size_displacement}
-
-Inside this folder we save: 
-
-* Test
-    * In_Out_Target_Images
-    * Mine_Dataset
-    * Results_Mine_Test
-* Train
-    * Generative_Plot
-    * In_Out_Target_Images
-    * Loss_Image_TXT
-    * Mean_Gradients_by_Capsule
-    * Mean_Gradients_by_Layer
-* Poses
-    * Comparison_Original_Shift
-    * Images
-* best_model.pth
-
-
-### Interpretabilidade
-
-## Some Annotation About The Code
-
-
 ## Model Design
-Para reconstrução e para equivarience
+
+Para reconstrução 
+
+para equivarience
 
 ## To Do
 
@@ -135,20 +145,13 @@ Para reconstrução e para equivarience
 - [x] Multi-Dataset Support: The code has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
 - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
 - [x] Added different cost functions for different databases. CIFAR -> MSELoss, Rest -> BCEWithLogitsLoss 
-- [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#folder-structure-results).
-- [x] 
-- []  Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
-- [] Explorar e analisar relações entre os plot generative com Poses etc....
-
-
-
-
-
- 
-
-
-
-
+- [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
+- [x] Compare the original image with model reconstruction and displacement image with model displacement image.
+- [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
+- [x] Spatial Independence — Y Coordinate: verify that horizontal shifts do not affect the Y pose estimate, confirming orthogonality of the learned spatial dimensions.
+- [ ]  Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
+- [ ] Explorar e analisar relações entre a camada generative de cada capsulas com por exemplo Poses etc....
+- [ ] The results are based on images, create some metrics.
 
 
 ## Credits
