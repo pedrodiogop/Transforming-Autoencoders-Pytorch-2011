@@ -30,7 +30,7 @@ All dependencies are listed in requirements.txt. To install them, simply run:
 | capsule.py | Defines the Capsule module — the core building block of the architecture. Each capsule contains five linear layers: a recogniser (inp_rec), a pose estimator (rec_xy), a presence probability estimator (rec_prob), a generator (xy_gen), and a reconstructor (gen_out). The forward pass encodes the input into a pose, applies the spatial displacement, and decodes back into image space. | 
 | aux_functions.py | Auxiliary functions used across scripts | 
 | gradients_aux.py | Auxiliary functions for gradient monitoring during training — accumulates the mean absolute gradient per layer across all batches, and generates two types of gradient flow plots: one organised by individual capsule (showing all five layers per capsule) and one organised by layer type (showing the mean gradient across all capsules), both using a logarithmic scale to reveal vanishing gradient behaviour. | 
-| poses.py | Test-time analysis script — loads a pretrained model and evaluates pose equivariance by comparing pose estimates of original and horizontally shifted images across all capsules. Generates scatter plots with linear fits for both X and Y coordinates also creates a comparison between original images vs. output images model. | 
+| poses.py | Test-time analysis script — loads a pretrained model and evaluates pose equivariance by comparing pose estimates of original and horizontally shifted images across all capsules. Generates scatter plots with linear fits for both X and Y coordinates also creates a comparison between original images vs output images model. | 
 | aux_function_poses.py | Auxiliary functions used in the poses.py scripts | 
 | test.py | Test-time script that evaluates the model with or without applying any spatial displacement, supporting custom datasets | 
 | Custom_Data_Set.py | Defines a custom PyTorch Dataset class to load and preprocess non-standard datasets — allows the architecture to be evaluated on data beyond the built-in torchvision datasets such as MNIST and CIFAR10. | 
@@ -66,7 +66,7 @@ Inside this folder we save:
 
 *Note: The command shown below is the exact one used to generate the results demonstrated below. Feel free to train and test the model with different hyperparameters!*
 
-*Note: The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches, and the path used to load the model (`best_model.pth`) will fail.*
+*Note: The hyperparameters passed in the command line **must match exactly** those used during the model's training phase (e.g., `--batch_size`, `--len_pose`, etc.). Otherwise, the model weights will fail to load correctly due to architecture mismatches, and the path used to load the model (`best_model.pth`).*
 
 ### Training Pipeline — Loss, Capsules Gradients, Layers Gradients, Generative Weights, and Image reconstruction (`main.py`)
 
@@ -74,7 +74,7 @@ Inside this folder we save:
     
     $ python3 main.py --device cpu --dataset CIFAR10 --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 75 --len_pose 16 --size_displacement 0
 
-[See Results](#)Link
+[See Results](#training-pipeline--loss-capsules-gradients-layers-gradients-generative-weights-and-image-reconstruction-mainpy-1)
 
 ### Poses & Equivariance Evaluation (`poses.py`)
 > ⚠️ **Prerequisite:** Before running this script, you must train the model using `main.py`.
