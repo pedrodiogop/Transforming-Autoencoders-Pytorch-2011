@@ -4,14 +4,20 @@ This project is based on the research presented in the following paper:
 
     [Hinton, Geoffrey E., Alex Krizhevsky, and Sida D. Wang. "Transforming auto-encoders." International Conference on Artificial Neural Networks. Springer, Berlin, Heidelberg, 2011.](http://www.cs.toronto.edu/~fritz/absps/transauto6.pdf)
 
-Adicionar uma breve introdução ao paper, mostrar brevemente os resultados, e etc...
-Falar que foi executado num macbook M1 RAM 16 GB
-Fazemos dois estudos um para reconstução das imagens e outro para equivarience 
+This project is a PyTorch implementation of the Transforming Autoencoder architecture proposed by Hinton, Krizhevsky, and Wang (2011). The original paper introduced a generative model built from capsules — independent computational units that learn to encode both the presence and the pose of a visual feature, and to reconstruct a transformed version of the input given an explicit displacement vector.
+
+The architecture was evaluated on two datasets: MNIST and CIFAR-10. For MNIST, the model successfully learned pose-equivariant representations, achieving near-perfect spatial tracking with X-axis slopes of 0.90–0.92 and Y-axis slopes of 1.00. For CIFAR-10, the model was trained for 150 epochs and evaluated on both the official test set and a custom out-of-distribution dataset composed of real-world images, demonstrating that the learned capsule representations generalise beyond the training distribution.
+Additionally, gradient flow and generative weight visualisations were produced throughout training, providing insight into the internal behaviour of each capsule.
+
+All experiments were conducted on a MacBook M1 with 16 GB of RAM.
 
 ## Requirements
 
-Ao final correr este script pip freeze > requirements.txt e fazer os requirements 
-o utilizador so precisa de correr o seguinte codigo pip install -r requirements.txt para instalar as bibliotecas e versoes corretas
+This project was developed and tested with Python 3.9.6.
+
+All dependencies are listed in requirements.txt. To install them, simply run:
+
+    pip install -r requirements.txt
 
 ## Scripts and Folders: 
 
