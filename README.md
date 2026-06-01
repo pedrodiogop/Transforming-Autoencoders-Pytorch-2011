@@ -97,7 +97,7 @@ Inside this folder we save:
 | --cap_gen | 40 | Capsule generation dimension |
 | --lr | 0.001 | Learning rate |
 | --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it. |
-| --len_pose | 2 | Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to image reconstruction. |
+| --len_pose | 2 | Capsule pose vector length.|
 | --size_displacement | 4 | To control the size of the displacement, if want to train just for reconstruction set this to 0 |
 | --custom_dataset | action='store_true' | Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it. |
 
@@ -109,63 +109,123 @@ Inside this folder we save:
 
 ##### Generative Weights
 
+The following images display the patterns learned by the generative layer `gen_out` of each capsule. Each row corresponds to an individual capsule and each column corresponds to one generative unit within that capsule — representing the visual pattern that unit has learned to contribute to the final reconstruction. Each image is the visualisation of a single column of the `gen_out` weight matrix, reshaped to the original image dimensions. These patterns can be interpreted as the visual primitives that the capsule combines linearly to reconstruct the input image. Notably, recognisable digit-like structures can be identified within individual generative units.
+
+> **Analysis tip:** this plot should be interpreted alongside the Generative Weights visualisation.
+
+Epoch01
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Generative_Plot/weight_gen_out_epoch_1.png)
+
+Epoch22
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Generative_Plot/weight_gen_out_epoch_22.png)
+
+Epoch40
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Generative_Plot/weight_gen_out_epoch_40.png)
 
 #### Image reconstruction
 
+The following images display the reconstruction results of the model. Each image triplet is organised as follows: the original input image, shifted target image (shift range [−4, +4] pixels), and the corresponding model output reconstruction (input of the model = (original_image, shift range [−4, +4] pixels)).
+
+Epoch01
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/In_Out_Target_Images/Epoch_000/batch_00936.png)
+
+Epoch23
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/In_Out_Target_Images/Epoch_022/batch_00936.png)
+
+Epoch40
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/In_Out_Target_Images/Epoch_039/batch_00936.png)
 
 #### Loss
 
+The following plot shows the progression of the training loss over all iterations.
+
+Epoch01
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Loss_Image_TXT/Loss_Ep_001.png)
+
+Epoch40
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Loss_Image_TXT/Loss_Ep_040.png)
 
 #### Capsules Gradients
 
-![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_001.png)
-![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_023.png)
+The following image shows the mean absolute gradient of each layer within each individual capsule across all batches. Additional more plots are available inside the `Results` folder.
+
+Each subplot corresponds to one capsule and displays five lines, one per layer (`inp_rec`, `rec_xy`, `rec_prob`, `xy_gen`, `gen_out`), plotted on a logarithmic scale. 
+
+> **Analysis tip:** this plot should be interpreted alongside the Generative Weights visualisation.
+
+Epoch40
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_040.png)
 
 ### Layers Gradients
+The following image shows the mean absolute gradient aggregated across all capsules, displayed per layer type. This provides a global view of gradient health across the entire architecture.
 
+Epoch01
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_001.png)
+
+Epoch40
 ![](Results/MNIST/64_25_40_40_0.001_2_4/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_040.png)
 
 #### CIFAR10
 
 ##### Generative Weights
 
+
+The following images display the patterns learned by the generative layer `gen_out` of each capsule. Each row corresponds to an individual capsule and each column corresponds to one generative unit within that capsule — representing the visual pattern that unit has learned to contribute to the final reconstruction. Each image is the visualisation of a single column of the `gen_out` weight matrix, reshaped to the original image dimensions. These patterns can be interpreted as the visual primitives that the capsule combines linearly to reconstruct the input image.
+
+> **Analysis tip:** this plot should be interpreted alongside the Generative Weights visualisation.
+
+Epoch001
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Generative_Plot/weight_gen_out_epoch_1.png)
-![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Generative_Plot/weight_gen_out_epoch_125.png)
+
+Epoch150
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Generative_Plot/weight_gen_out_epoch_150.png)
 
 
 #### Image reconstruction
 
+The following images display the reconstruction results of the model. Each image triplet is organised as follows: the original input image, shifted target image, and the corresponding model output reconstruction. No Displacement was apply, so original input image = shifted target image.
+
+
+Epoch001
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/In_Out_Target_Images/Epoch_000/batch_00780.png)
+
+Epoch124
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/In_Out_Target_Images/Epoch_125/batch_00780.png)
+
+Epoch150
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/In_Out_Target_Images/Epoch_149/batch_00780.png)
 
 
 #### Loss
 
+The following plot shows the progression of the training loss over all iterations.
+
+Epoch001
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Loss_Image_TXT/Loss_Ep_001.png)
+
+Epoch150
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Loss_Image_TXT/Loss_Ep_150.png)
 
 #### Capsules Gradients
 
-![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_001.png)
-![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_125.png)
+The following image shows the mean absolute gradient of each layer within each individual capsule across all batches. Additional more plots are available inside the `Results` folder.
+
+Each subplot corresponds to one capsule and displays five lines, one per layer (`inp_rec`, `rec_xy`, `rec_prob`, `xy_gen`, `gen_out`), plotted on a logarithmic scale. 
+
+> **Analysis tip:** this plot should be interpreted alongside the Generative Weights visualisation.
+
+Epoch150
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Capsule/grad_flow_capsules_ep_150.png)
 
 
 ### Layers Gradients
 
+The following image shows the mean absolute gradient aggregated across all capsules, displayed per layer type. This provides a global view of gradient health across the entire architecture.
+
+Epoch001
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_001.png)
+
+Epoch150
 ![](Results/CIFAR10/64_75_40_40_0.001_16_0/Train/Mean_Gradients_by_Layer/grad_flow_layers_ep_150.png)
 
 
@@ -266,28 +326,3 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 ## Credits
 
 The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoelacanth/TransformingAutoencoder_PyTorch)
-
-
-## Key Modifications: 
-
-*   Results are dynamically saved in a hierarchical folder structure based on the hyperparameters: Results/{dataset}/{batch_size}_{num_caps}_{cap_rec}_{cap_gen}_{learning_rate}/. Example: Results/fashion-mnist/6_25_16_16_0.001/. Inside each folder we store: 'Image_Loss' -> A plot representing the Loss Function evolution for each epoch.
-*   Function that save the Input/Target/Output Images for comparison
-* **Gradient Analysis Plots:**
-  * `Gradients_Per_Capsule`: Visualizes the mean gradient behavior for each individual capsule across epochs or batch_size.
-  * `Gradients_Per_Layer`: Displays the gradient flow across different layers across epoch or batch_size.
-* **Latent Space & Spatial Equivariance Diagnostics (`poses.py`):** Developed a dedicated evaluation framework to validate the network's mathematical behavior against Geoffrey Hinton's core formulation of capsule-based coordinate frames.
-    * **Methodology:** Tracks and extracts the learned internal capsule pose parameters before and after applying physical horizontal shifts generated dynamically via PyTorch `affine_grid` and `grid_sample` mapping.
-    * **Linear Equivariance Validation:** Outputs comprehensive scatter plots with linear regression lines, proving a high correlation between original and displaced latent representations, backed by robust Coefficients of Determination.
-    * **Directional Awareness:** Visualizes a distinct, parallel geometric separation between the **Less (-3)** and **More (+3)** translation trends, confirming that the targeted capsule successfully internalizes both the magnitude and direction of the displacement vector ($dxy$).
-    * **Feature Disentanglement:** Demonstrates that the architecture successfully extracts a continuous coordinate system for spatial reasoning instead of merely memorizing surface-level pixel intensities.
-    * Within the Poses/Comparison_Original_Shift folder, we can see some results filtered by the probability of the capsule(threshold >= 0.9), removing some noise.
-    * Below is the generated scatter plot proving the linear relationship of the latent space (): ![Pose Equivariance Plot](Poses/ALL_Data_Poses_Capsule_2_Combined_[LessMore,Original]_Comparisons.png)
-* **Dual-Mode Training Strategy: Equivariance vs. Reconstruction Capacity**: The architecture is highly flexible and dynamically adapts its training behavior based on the `--len_pose` hyperparameter:
-    * **Equivariance Mode (`--len_pose 2`):** Restricts the latent space strictly to $X$ and $Y$ coordinates to enforce and analyze geometric translation equivariance.
-    * **Generative Reconstruction Mode (`--len_pose > 2`):** Bypasses the spatial displacement constraint to maximize the model's capacity for complex image synthesis. Used for training with the cifar10 dataset. 
-* **Evaluation**: To support the dual-mode architecture strategy, the framework includes two dedicated testing scripts, one for image reconstruction "MINE" other for equivariance.
-
-
-
-
-
