@@ -88,7 +88,7 @@ Inside this folder we save:
 
     $ python3 test.py --device cpu --dataset CIFAR10 --batch_size 64 --lr 0.001 --cap_gen 40 --cap_rec 40 --num_caps 75 --len_pose 16 --size_displacement 0 --custom_dataset
 
-[See Results](#evaluation-of-the-model-reconstruction-testpy-1). Adicionar link
+[See Results](#evaluation-of-the-model-reconstruction-testpy-1).
 
     
 
@@ -102,7 +102,7 @@ Inside this folder we save:
 | --cap_rec | 40 | Capsule reconstruction dimension |
 | --cap_gen | 40 | Capsule generation dimension |
 | --lr | 0.001 | Learning rate |
-| --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10" or "Mine". The "Mine" mode is specifically used in `test.py` to evaluate the CIFAR-10 trained model on custom personal images. To use this feature, you must create a folder named "Mine_Dataset", where the model exists(exe: Results/CIFAR10/64_75_40_40_0.001_16/Test) and place your custom images inside it. |
+| --dataset | MNIST | Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10".|
 | --len_pose | 2 | Capsule pose vector length.|
 | --size_displacement | 4 | To control the size of the displacement, if want to train just for reconstruction set this to 0 |
 | --custom_dataset | action='store_true' | Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it. |
@@ -304,30 +304,33 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 - [x] Compare the original image with model reconstruction and displacement image with model displacement image.
 - [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
 - [x] Spatial Independence — Y Coordinate: verify that horizontal shifts do not affect the Y pose estimate, confirming orthogonality of the learned spatial dimensions.
-- [x] The test.py script accepts a custom dataset.
+- [x] Adapt the test.py script to accept a custom dataset.
 - [ ] Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
-- [ ] Try to find patterns in the relationship between the results and pain using the chosen hyperparameters.
+- [ ] Try to find patterns in the relationship between the results and the chosen hyperparameters.
 - [ ] Analyze the results when we change the "optimizer".
 - [ ] When the pose value is greater than 2, understand what each number in the pose represents (x, y, rotation, etc.). Test this in the poses.py script.
-- [ ] Explorar e analisar relações entre a camada generative de cada capsulas com por exemplo Poses etc....
-- [ ] The results are based on images, create some metrics.
-- [ ] Adicionar um ficheiro txt, dentro diretorio onde o modelo esta guardado com a informação do modelo summary()
+- [ ] See if different capsules specialize in different classes — and if the gen_out of those capsules "draws" something related to that class.
+- [ ] Save a `summary.txt` file inside the model's directory containing the detailed network architecture.
 - [ ] Train and test for Norb dataset
+- [ ] Evaluating reconstruction quality using domain-appropriate metrics such as SSIM and PSNR
 - [ ] **Generalise to Real-World Domain-Specific Datasets** — adapt the training and evaluation pipeline to support real-world image datasets, with a particular focus on medical imaging (e.g. X-rays, MRI scans, histology slides). Evaluate whether the capsule architecture can learn meaningful pose representations and produce coherent reconstructions in high-stakes domains where interpretability and spatial equivariance are especially valuable. Key adaptations may include:
   - Supporting greyscale and multi-channel medical image formats
   - Handling higher resolution inputs beyond 32×32
   - Evaluating reconstruction quality using domain-appropriate metrics 
     such as SSIM and PSNR in addition to MSE
-- [ ] Generalise BatchShift_torch to support arbitrary pose dimensions, currently the function only applies displacement along the X and Y axes. Extend the function to generate a displacement vector R of dimension pose_dim.
+- [ ] Generalise BatchShift_torch to support arbitrary pose dimensions, currently the function only applies displacement along the X and Y axes. Extend the function to generate a displacement vector R of dimension {pose_dim}.
 - [ ] Poses.py script on the equivarience results only produces for the X and Y axis. Adapt the code for more axis on {pose_dim}.
-- [ ] Train a model with CIFAR dataset with 1 or 2 or 3 ... and analyze the Generative_Plot for each result. In the MNIST Dataset the generative wights draw numbers, look for the same in the CIFAR10
+- [ ] Train a model with CIFAR dataset with 1 or 2 or 3 {pose_dim}... and analyze the Generative_Plot for each result. In the MNIST Dataset the generative wights draw numbers, look for the same in the CIFAR10
 - [ ] In the generative_Plot there are interesting results, plotting these individual and augmented results to try to better understand the picture (CIFAR10).
 - [ ] After analyzing the images reconstructed by generative and flow capsule gradients, we were able to identify some patterns.
-- [ ] In the images resulting from the gen_out layer, we can see that there are weights that never learn! This requires changing the transformer architecture in some way to bring these weights to life.
+- [ ] In the images resulting from the gen_out layer, we can see that there are weights that never learn! This requires changing the architecture in some way to bring these weights to life.
 - [ ] After analyzing the CIFAR10 training with 16 poses and 150 epochs, we can see that gradient flow still existed and some gen_outs were waking up. We should train the model with, for example, 400 epochs to see if the gradient dies, if the generatives stop learning, or if any capsule wakes up later.
 - [ ] Pass a single image through the model, show a comparison between the original and the reconstruction. Show all images generated by the generative weights where the probability of that same capsule is greater than 0.7 (or another treshold).
 - [ ] Analyzing the gen_out of MNIST, we can see that the resulting images from the gen_out layer are drawing whole numbers. We can easily see that a gen_out is drawing a 2 or 3, etc. A study would be conducted where I analyze the model's behavior for each individual label and verify which capsules activate and what the resulting image of the generative weights is.
-- [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. Two architectural modifications are proposed and should be evaluated: 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied. 2º instead of scaling the final reconstructed image by a single scalar probability, apply the probability as a gate on the generative activations before reconstruction. 
+- [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. Two architectural modifications are proposed and should be evaluated: 
+    - 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied. 
+    - 2º instead of scaling the final reconstructed image by a single scalar probability, apply the probability as a gate on the generative activations before reconstruction. 
+- [ ] To graphically represent the poses of all images in a dataset and color each point according to the label. The expectation is to find clusters.
 
 ## Credits
 
