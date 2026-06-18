@@ -297,7 +297,7 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 
 - [x] Added command-line arguments for all hyper parameters;
 - [x] Added comments across all scripts to help understand the code;
-- [x] Multi-Dataset Support: The code has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
+- [x] Multi-Dataset Support: The training model has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
 - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
 - [x] Added different cost functions for different databases. CIFAR -> MSELoss, Rest -> BCEWithLogitsLoss 
 - [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
@@ -331,6 +331,16 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
     - 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied. 
     - 2º instead of scaling the final reconstructed image by a single scalar probability, apply the probability as a gate on the generative activations before reconstruction. 
 - [ ] To graphically represent the poses of all images in a dataset and color each point according to the label. The expectation is to find clusters.
+- [ ] To study the reconstruction of the image from generative units.
+- [ ] No seu TAE: Extraia o valor de ativação p (probabilidade) de cada cápsula. Descubra qual é a cápsula que disparou o valor mais alto para aquele objeto. Faça o mapeamento de quais recognition units (pesos de entrada) estavam ligados a essa cápsula. Isto gerará um mapa de que "pedaço" da imagem ativou aquela cápsula específica.
+- [ ] Adicionar rede para classificação, fazendo fine-tuning.
+- [ ] Métricas de Disentanglement
+    - β-VAE Score
+    - MIG — Mutual Information Gap
+    - DCI Score — Disentanglement, Completeness, Informativeness
+    - SAP
+- [ ] Adicionar hyperparametro seed 
+
 
 ## Credits
 
