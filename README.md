@@ -299,7 +299,7 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 - [x] Added comments across all scripts to help understand the code;
 - [x] Multi-Dataset Support: The training model has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
 - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
-- [x] Added different cost functions for different databases. CIFAR -> MSELoss, Rest -> BCEWithLogitsLoss 
+- [x] Added different cost functions for different databases. Color -> MSELoss, Rest -> BCEWithLogitsLoss 
 - [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
 - [x] Compare the original image with model reconstruction and displacement image with model displacement image.
 - [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
@@ -340,6 +340,8 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
     - DCI Score — Disentanglement, Completeness, Informativeness
     - SAP
 - [ ] Adicionar hyperparametro seed 
+
+- [x] Alterei a arquitetura do modelo para lidar com rotação. Á pose esta a ser adicionada o vetor "T" que é diferente ao sugerido pelo HILTON do paper TAE.
 
 
 ## Credits

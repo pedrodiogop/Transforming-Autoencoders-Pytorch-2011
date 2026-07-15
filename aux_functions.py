@@ -28,6 +28,24 @@ import torch.nn.functional as F
 #     plt.savefig(f'{RESULTS_DIR_POSES}/Poses_Ep_{epoch+1:03d}.png', dpi=150, bbox_inches='tight')
 #     plt.close(fig)
 
+# def Get_Args():
+#     parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
+    
+#     parser.add_argument('--device',     type=str,   default='mps',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
+#     parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
+#     parser.add_argument('--epochs',     type=int,   default=40,     help='Number of epochs to train')
+#     parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
+#     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
+#     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
+#     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
+#     parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10".')
+#     parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
+#     parser.add_argument('--size_displacement',    type=int,   default=4, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
+#     parser.add_argument('--custom_dataset', action='store_true', help='Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it.')
+
+    
+#     return parser.parse_args()
+
 def Get_Args():
     parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
     
@@ -38,10 +56,12 @@ def Get_Args():
     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
-    parser.add_argument('--dataset',    type=str,   default='MNIST', help='Dataset for training or test, only accepts "MNIST", "FashionMNIST", "CIFAR10".')
+    parser.add_argument('--dataset',    type=str,   default='MNIST', choices=['MNIST', 'FashionMNIST', 'CIFAR10', 'SmallNORB'])
     parser.add_argument('--len_pose',    type=int,   default=2, help='Capsule pose vector length. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
     parser.add_argument('--size_displacement',    type=int,   default=4, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
     parser.add_argument('--custom_dataset', action='store_true', help='Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it.')
+    parser.add_argument('--norb_path', type=str, default='./temp/data_small_norb', help='Path para os ficheiros .mat do smallNORB')
+    
 
     
     return parser.parse_args()
@@ -112,26 +132,46 @@ def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TAR
     caminho = os.path.join(diretorio, f'batch_{i:05d}.png')
     plt.imsave(caminho, img)
 
-def BatchShift_torch(imbatch: torch.Tensor, dxdy, padding_mode_sift, device, pose_dim):
 
+
+def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift, device, pose_dim):
     B, C, H, W = imbatch.shape
+
+    # pose_dim deve ser 6 — os 6 elementos da matriz 2×3
     R = torch.zeros(B, pose_dim, device=device, dtype=torch.float32)
-    R[:, 0] = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()  # dx
-    R[:, 1] = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()  # dy
-    
-    dx_norm = R[:, 0] / W 
-    dy_norm = R[:, 1] / H 
 
-    theta = torch.zeros(B, 2, 3, device=device)
+    # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
+    dx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+    dy = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
 
-    theta[:, 0, 0] = 1.0         # escala X
-    theta[:, 1, 1] = 1.0         # escala Y
-    theta[:, 0, 2] = dx_norm     # translação X
-    theta[:, 1, 2] = dy_norm     # translação Y
+    angle_deg = (torch.rand(B, device=device)
+                 * (angle_range[1] - angle_range[0])
+                 + angle_range[0])
+    theta_rad = angle_deg * (torch.pi / 180.0)
 
-    grid = F.affine_grid(theta, imbatch.size(), align_corners=False)
-    shifted = F.grid_sample(imbatch, grid, mode='bilinear', 
-                             padding_mode=padding_mode_sift, align_corners=False)
+    cos_t = torch.cos(theta_rad)
+    sin_t = torch.sin(theta_rad)
+
+    # ── 2. Normalizar translação ──────────────────────────────────────────────
+    dx_norm = dx / (W / 2.0)
+    dy_norm = dy / (H / 2.0)
+
+    # ── 3. Preencher R com os 6 elementos da matriz 2×3 ──────────────────────
+    #   | cos(θ)  -sin(θ)   tx |  →  índices [0] [1] [2]
+    #   | sin(θ)   cos(θ)   ty |  →  índices [3] [4] [5]
+    R[:, 0] = cos_t
+    R[:, 1] = -sin_t
+    R[:, 2] = dx_norm
+    R[:, 3] = sin_t
+    R[:, 4] = cos_t
+    R[:, 5] = dy_norm
+
+    # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
+    T = R.view(B, 2, 3)
+
+    grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
+    shifted = F.grid_sample(imbatch, grid, mode='bilinear',
+                            padding_mode=padding_mode_sift, align_corners=False)
 
     return shifted, R
 

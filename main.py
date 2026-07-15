@@ -126,7 +126,7 @@ if __name__ == '__main__':
             inp = inp.to(DEVICE)
 
             if SIZE_DISPLACEMENT != 0: # with displacement 
-                target, dxy = BatchShift_torch(inp, [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT], padding_mode_sift, DEVICE, LEN_POSE)
+                target, dxy = BatchShift_torch(inp, [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT], [-30., 30.], padding_mode_sift, DEVICE, LEN_POSE)
                 out = capL(inp, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)
@@ -170,6 +170,7 @@ if __name__ == '__main__':
             if current_loss < best_loss:
                 best_loss = current_loss
                 best_state = {k: v.clone() for k, v in capL.state_dict().items()}
+                torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 
             # MEAN GRADIENTS FOR EACH CAPSULE
             grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
             # MEAN GRADIENTS FOR EACH LAYER 
@@ -191,4 +192,3 @@ if __name__ == '__main__':
         # grad_flow_layers = {'inp_rec': [], 'rec_xy': [], 'rec_prob': [], 'xy_gen': [], 'gen_out': []}
 
         # Plot_Poses(poses, RESULTS_DIR_POSES, epoch)
-    torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 
