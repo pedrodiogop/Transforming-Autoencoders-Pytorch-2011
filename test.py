@@ -10,6 +10,8 @@ import torch.nn as nn
 import os
 import torchvision
 import numpy as np
+from torchmetrics.image import StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio
 
 def Save_In_Out_Target_Images(inp, target, out, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
     inp = inp.detach().cpu()
@@ -97,10 +99,14 @@ if __name__ == '__main__':
     capL_test = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_GEN, LEN_POSE)
     capL_test = capL_test.to(DEVICE)
     crit = nn.MSELoss() if 'CIFAR' in DATASET else nn.BCEWithLogitsLoss() 
+    ssim = StructuralSimilarityIndexMeasure().to(DEVICE)
+    psnr = PeakSignalNoiseRatio(data_range=1.0).to(DEVICE)
 
     capL_test.load_state_dict(torch.load(f'{RESULTS_DIR}/best_model.pth', map_location=DEVICE))
     capL_test.eval()
     test_loss = 0.0
+    test_ssim = 0.0
+    test_psnr = 0.0
     num_batch_size = len(testeloader) - 1
     with torch.no_grad():
         for i, (img, _) in enumerate(testeloader):
@@ -111,6 +117,11 @@ if __name__ == '__main__':
                 out = capL_test(img, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)
+                ssim_score = ssim(out, img)
+                psnr_score = psnr(out, img)
+                test_ssim += ssim_score.item()
+                test_psnr += psnr_score.item()
+                
                 if not CUSTOM_DATASET: # Standard Dataset
                     Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}_{SIZE_DISPLACEMENT}', DATASET)
                     print(f'Img|Out Save in {RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}, interaction = {i}/{num_batch_size}')
@@ -123,6 +134,10 @@ if __name__ == '__main__':
                 out = capL_test(img, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W) 
                 loss = crit(out, img)
+                ssim_score = ssim(out, img)
+                psnr_score = psnr(out, img)
+                test_ssim += ssim_score.item()
+                test_psnr += psnr_score.item()
                 if not CUSTOM_DATASET: # Standard Dataset
                     Save_In_Out_Target_Images(img, False, out, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT, DATASET)
                     print(f'Img|Out Save in {RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT}, interaction = {i}/{num_batch_size}')
@@ -133,3 +148,5 @@ if __name__ == '__main__':
             test_loss += loss.item()
 
         print(f"Loss Média no Teste: {test_loss/len(testeloader):.4f}")
+        print(f"SSIM Média no Teste: {test_ssim/len(testeloader):.4f}")
+        print(f"PSNR Média no Teste: {test_psnr/len(testeloader):.4f}")

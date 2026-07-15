@@ -344,6 +344,8 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 - [x] Alterei a arquitetura do modelo para lidar com rotação. Á pose esta a ser adicionada o vetor "T" que é diferente ao sugerido pelo HILTON do paper TAE.
 
 
+
+
 ## Credits
 
 The codebase was originally forked from [IsCoelacanth](https://github.com/IsCoelacanth/TransformingAutoencoder_PyTorch)
