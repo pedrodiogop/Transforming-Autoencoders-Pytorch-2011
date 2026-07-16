@@ -15,7 +15,6 @@ import numpy as np
 
 if __name__ == '__main__':
     args = Get_Args()
-    print("teste")
     # If you want to see your GPU or CPU in action, you can use the following code to check if PyTorch recognizes it and to set the device accordingly:
     # device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 
