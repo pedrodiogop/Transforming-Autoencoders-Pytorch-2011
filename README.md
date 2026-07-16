@@ -297,15 +297,15 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 
 - [x] Added command-line arguments for all hyper parameters;
 - [x] Added comments across all scripts to help understand the code;
-- [x] Multi-Dataset Support: The training model has been adapted to handle different datasets, MNIST, FashionMNIST and CIFAR10;
+- [x] Multi-Dataset Support: The training model has been adapted to handle different datasets, MNIST, FashionMNIST, CIFAR10, SmallNorb and Head Pose Image Database;
 - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
-- [x] Added different cost functions for different databases. Color -> MSELoss, Rest -> BCEWithLogitsLoss 
+- [x] Add different cost functions depending on the colors of the dataset. Color -> MSELoss, Binary -> BCEWithLogitsLoss.
 - [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
-- [x] Compare the original image with model reconstruction and displacement image with model displacement image.
-- [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
+- [x] Function that illustrates original image, displaced original image, and displaced reconstruction.
+    - [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
 - [x] Spatial Independence — Y Coordinate: verify that horizontal shifts do not affect the Y pose estimate, confirming orthogonality of the learned spatial dimensions.
 - [x] Adapt the test.py script to accept a custom dataset.
-- [ ] Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
+    - [ ] Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
 - [ ] Try to find patterns in the relationship between the results and the chosen hyperparameters.
 - [ ] Analyze the results when we change the "optimizer".
 - [ ] When the pose value is greater than 2, understand what each number in the pose represents (x, y, rotation, etc.). Test this in the poses.py script.
