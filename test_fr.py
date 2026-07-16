@@ -2,7 +2,6 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 from aux_functions import Get_Args
-from Class_HeadPose import CustomImageDataset
 import torch
 from CapLayer import CapLayer
 import matplotlib.pyplot as plt
@@ -10,14 +9,13 @@ import torch.nn as nn
 import os
 import torchvision
 import numpy as np
-from SmallNORBPairDataset import SmallNORBPairDataset
 from torchmetrics.image import StructuralSimilarityIndexMeasure
 from torchmetrics.image import PeakSignalNoiseRatio
-
+from Class_HeadPose import HeadPoseDataset
 
 def Save_In_Out_Target_Images(inp, target, out, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
     inp = inp.detach().cpu()
-    out = torch.sigmoid(out).detach().cpu() if ('CIFAR' not in DATASET and 'Mine' not in DATASET) else out.clamp(0, 1).detach().cpu()
+    out = out.clamp(0, 1).detach().cpu()
 
     if target is not False and target is not None:
         target = target.detach().cpu()
@@ -48,29 +46,28 @@ if __name__ == '__main__':
     NUM_CAPS = args.num_caps
     CAP_REC = args.cap_rec
     CAP_GEN = args.cap_gen
-    DATASET = args.dataset
+    DATASET = "Face_Equivarience"
     LEN_POSE = args.len_pose  
     LR = args.lr  
-    PATH_DATASET_NORB = "tmp/data_small_norb"
-    DATASET = "SmallNORB" 
 
     RESULTS_DIR = f'Results/{DATASET}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LR}_{LEN_POSE}'
     RESULTS_DIR_TEST = f'{RESULTS_DIR}/Test'
-    RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT = f'{RESULTS_DIR_TEST}/In_Out_Target_Images_Without_Displacement'
+    RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT = f'{RESULTS_DIR_TEST}/In_Out_Target_Images'
 
     os.makedirs(RESULTS_DIR_TEST, exist_ok=True)
     os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT, exist_ok=True)  
 
-    test_dataset  = SmallNORBPairDataset(PATH_DATASET_NORB, split='test',  image_size=32)
+    test_dataset = HeadPoseDataset("tmp/test", None, 3, 24, 18)
         
-    testeloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
-    sample = testeloader.dataset[0]  # (C, H, W)
+    testeloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=8, pin_memory=True, persistent_workers=True)
+    torch.backends.cudnn.benchmark = True  # se o tamanho das imagens for fixo
+    sample = testeloader.dataset[0][0]   # (C, H, W)
     IN_DIM = sample.numel()  # total number of pixels (C*H*W)
     IMG_C, IMG_H, IMG_W = sample.shape
 
     capL_test = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_GEN, LEN_POSE)
     capL_test = capL_test.to(DEVICE)
-    crit = nn.BCEWithLogitsLoss() 
+    crit = nn.MSELoss()
     ssim = StructuralSimilarityIndexMeasure().to(DEVICE)
     psnr = PeakSignalNoiseRatio(data_range=1.0).to(DEVICE)
 
@@ -79,25 +76,25 @@ if __name__ == '__main__':
     test_loss = 0.0
     test_ssim = 0.0
     test_psnr = 0.0
-    num_batch_size = len(testeloader) - 1
+    # num_batch_size = len(testeloader) - 1
     with torch.no_grad():
-         for i, image_A in enumerate(testeloader):
-            img = image_A.to(DEVICE)
-            # print(img.size())
+          for i, (image_A, image_B, pose_diff) in enumerate(testeloader):
+            image_A = image_A.to(DEVICE, non_blocking=True)
+            image_B = image_B.to(DEVICE, non_blocking=True)
+            pose_diff = pose_diff.to(DEVICE, non_blocking=True)
 
-            R = torch.zeros(img.size(0), LEN_POSE, device=DEVICE, dtype=torch.float32)
-            out = capL_test(img, R)
+            out = capL_test(image_A, pose_diff)
 
             out = out.view(-1, IMG_C, IMG_H, IMG_W) 
-            loss = crit(out, img)
-            ssim_score = ssim(out, img)
-            psnr_score = psnr(out, img)
+            loss = crit(out, image_B)
+            ssim_score = ssim(out, image_B)
+            psnr_score = psnr(out, image_B)
 
             test_loss += loss.item()
             test_ssim += ssim_score.item()
             test_psnr += psnr_score.item()
             
-            Save_In_Out_Target_Images(img, False, out, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT, DATASET)
+            Save_In_Out_Target_Images(image_A, image_B, out, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT, DATASET)
             print(f'Batch {i}/{len(testeloader)} | Loss = {loss.item():.4f} | SSIM = {ssim_score:.4f} | PSNR = {psnr_score:.4f} dB')
 
     print(f"Loss Média  : {test_loss / len(testeloader):.4f}")

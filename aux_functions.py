@@ -179,23 +179,3 @@ def Loss_Txt(epoch, NUM_EPOCHS, time, current_loss, RESULTS_DIR_LOSS):
      text = f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {time:.2f} seconds; Loss: {current_loss:.4f}\n"
      with open(f'{RESULTS_DIR_LOSS}/Log_Treino.txt', "a", encoding="utf-8") as f:
           f.write(text)
-
-
-# Função que guarda as imagens originais e deslocadas para estudo! 
-# def save_shifted_images(img, rimg, epoch, batch_idx, img_idx):
-#     folder_path = f"images/shift/epoch{epoch}_batch_size{batch_idx}"
-#     if not os.path.exists(folder_path):
-#         os.makedirs(folder_path)
-#     img = np.transpose(img, (1,2,0))
-#     rimg = np.transpose(rimg, (1,2,0))
-        
-#     if img.max() <= 1.0:
-#         img = (img * 255).astype(np.uint8)
-
-#     if rimg.max() <= 1.0:
-#         rimg = (rimg * 255).astype(np.uint8)
-
-#     file_path = os.path.join(folder_path, f"{img_idx}.png")
-#     file_path_shifted = os.path.join(folder_path, f"{img_idx}_shifted.png")
-#     cv2.imwrite(file_path, img)
-#     cv2.imwrite(file_path_shifted, rimg)

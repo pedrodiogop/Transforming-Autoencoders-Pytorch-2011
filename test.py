@@ -2,7 +2,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 from aux_functions import Get_Args, BatchShift_torch
-from Custom_Data_Set import CustomImageDataset
+from Class_HeadPose import CustomImageDataset
 import torch
 from CapLayer import CapLayer
 import matplotlib.pyplot as plt
