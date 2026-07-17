@@ -4,14 +4,14 @@ import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
-from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt
+# import matplotlib.pyplot as plt
+from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt, set_seed, save_summary_to_file
 from aux_gradients import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
 import torch.nn as nn
 import time
-import numpy as np
+# import numpy as np
 
 if __name__ == '__main__':
     args = Get_Args()
@@ -26,13 +26,16 @@ if __name__ == '__main__':
     CAP_GEN = args.cap_gen # decode the image
     DATASET = args.dataset
     LEN_POSE = args.len_pose
-    SIZE_DISPLACEMENT = args.size_displacement
+    RANDOM_TRANSLATION = args.random_translation
+    ROTATION_ANGLE = args.rotation_angle
+    SEED = args.seed
 
     lr = args.lr
     best_loss = 100.0
+    set_seed(SEED)
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_{LEN_POSE}_{SIZE_DISPLACEMENT}'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{lr}_{SEED}'
     RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'
@@ -42,14 +45,8 @@ if __name__ == '__main__':
     RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Layer'
     RESULTS_DIR_GENERATIVE = f'{RESULTS_DIR_TRAIN}/Generative_Plot'
 
-
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
-    os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
     # os.makedirs(RESULTS_DIR_POSES, exist_ok=True) # save poses for each epoch
-    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
-    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
-    os.makedirs(RESULTS_DIR_GENERATIVE, exist_ok=True)
 
     dataset_class = getattr(datasets, DATASET)
     trainset = dataset_class(root="tmp", train=True, download=True, transform=ToTensor())
@@ -97,9 +94,12 @@ if __name__ == '__main__':
     # )
 
     # To check the model architecture 
-    # dxy_fake = torch.zeros((BATCH_SIZE, 2)).to(DEVICE) 
-    # img_fake = torch.zeros((BATCH_SIZE, 1, 28, 28)).to(DEVICE)
-    # summary(capL, input_data=[img_fake, dxy_fake])
+    fake_transformation = torch.zeros((BATCH_SIZE, LEN_POSE)).to(DEVICE) 
+    fake_img = torch.zeros((BATCH_SIZE, IMG_C, IMG_H, IMG_W)).to(DEVICE)
+    model_stats = summary(capL, input_data=[fake_img, fake_transformation], verbose=0)
+    save_summary_to_file(model_stats, RESULTS_DIR)
+    exit()
+
     poses = []
     loss_history = [] # save the loss for each iteration to plot later
 
@@ -124,8 +124,8 @@ if __name__ == '__main__':
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE)
 
-            if SIZE_DISPLACEMENT != 0: # with displacement 
-                target, dxy = BatchShift_torch(inp, [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT], [-30., 30.], padding_mode_sift, DEVICE, LEN_POSE)
+            if RANDOM_TRANSLATION != 0: # with displacement 
+                target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
                 out = capL(inp, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)

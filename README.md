@@ -304,8 +304,8 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
     - [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
     - [x] Adapt the test script to accept a custom dataset on CIFAR10.
     - [x] Adapt pose dimension to accept more transformation. 
-    - [ ] Save a `summary.txt` file inside the model's directory containing the detailed network architecture.
-    - [ ] Add seed to the hierarchical folder structure.
+    - [x] Save a `summary.txt` file inside the model's directory containing the detailed network architecture.
+    - [x] Add seed to the hierarchical folder structure.
     - [ ] **Generalise to Real-World Domain-Specific Datasets** — adapt the training and evaluation pipeline to support real-world image datasets, with a particular focus on medical imaging. Evaluate whether the capsule architecture can learn meaningful pose representations and produce coherent reconstructions in high-stakes domains where interpretability and spatial equivariance are especially valuable.
     - [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. One architectural modifications are proposed and should be evaluated: 
         - 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied.

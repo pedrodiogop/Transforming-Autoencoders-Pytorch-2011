@@ -24,7 +24,8 @@ def Save_Mean_Gradients_by_capsule(capL, grad_flow_caps):
     return grad_flow_caps
 
 
-def Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR):
+def Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES):
+    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
     layer_types = ['inp_rec', 'rec_xy', 'rec_prob', 'xy_gen', 'gen_out']
     colors      = ['blue', 'orange', 'green', 'red', 'purple']
     num_caps    = len(grad_flow_caps) # 25
@@ -55,7 +56,7 @@ def Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR):
 
     axes[-1].set_xlabel('Batch')
     plt.tight_layout()
-    plt.savefig(f'{RESULTS_DIR}/grad_flow_capsules_ep_{epoch+1:03d}.png',
+    plt.savefig(f'{RESULTS_DIR_GRADIENTS_MEAN_CAPSULES}/grad_flow_capsules_ep_{epoch+1:03d}.png',
                 dpi=150, bbox_inches='tight')
     plt.close(fig)
 
@@ -78,7 +79,8 @@ def Save_Mean_Gradients_by_layer(capL, grad_flow_layers):
                     
     return grad_flow_layers
 
-def Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR):
+def Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS):
+    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
     colors = {
         'inp_rec':  'blue',
         'rec_xy':   'orange',
@@ -105,7 +107,7 @@ def Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR):
     ax.axhline(1e-6, color='red', linestyle='--', linewidth=0.8, label='vanishing')
 
     plt.tight_layout()
-    plt.savefig(f'{RESULTS_DIR}/grad_flow_layers_ep_{epoch+1:03d}.png',
+    plt.savefig(f'{RESULTS_DIR_GRADIENTS_MEAN_LAYERS}/grad_flow_layers_ep_{epoch+1:03d}.png',
                 dpi=150, bbox_inches='tight')
     plt.close(fig)
 
