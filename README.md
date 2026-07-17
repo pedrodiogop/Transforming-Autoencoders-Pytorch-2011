@@ -295,56 +295,46 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 
 ## To Do
 
-- [x] Added command-line arguments for all hyper parameters;
-- [x] Added comments across all scripts to help understand the code;
-- [x] Multi-Dataset Support: The training model has been adapted to handle different datasets, MNIST, FashionMNIST, CIFAR10, SmallNorb and Head Pose Image Database;
-- [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
-- [x] Add different cost functions depending on the colors of the dataset. Color -> MSELoss, Binary -> BCEWithLogitsLoss.
-- [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
-- [x] Function that illustrates original image, displaced original image, and displaced reconstruction.
-    - [x] Pose Equivariance — X Coordinate: compare shifted vs original X pose estimates across all capsules; measure slope and parallelism of linear fits.
-- [x] Spatial Independence — Y Coordinate: verify that horizontal shifts do not affect the Y pose estimate, confirming orthogonality of the learned spatial dimensions.
-- [x] Adapt the test.py script to accept a custom dataset.
+- General Things
+    - [x] Added command-line arguments for all hyper parameters;
+    - [x] Added comments across all scripts to help understand the code;
+    - [x] Multi-Dataset Support: The training model has been adapted to handle different datasets, MNIST, FashionMNIST, CIFAR10, SmallNorb and Head Pose Image Database;
+    - [x] Capsule Activation Functions: Integrated non-linear activation functions within the capsules to improve feature representation and gradient flow.
+    - [x] Add different cost functions depending on the colors of the dataset. Color -> MSELoss, Binary -> BCEWithLogitsLoss.
+    - [x] Results are dynamically saved in a hierarchical folder structure based on the hyperparameters. [See More](#scripts-and-folders).
+    - [x] Adapt the test script to accept a custom dataset on CIFAR10.
+    - [x] Adapt pose dimension to accept more transformation. 
+    - [ ] Save a `summary.txt` file inside the model's directory containing the detailed network architecture.
+    - [ ] Add seed to the hierarchical folder structure.
+    - [ ] **Generalise to Real-World Domain-Specific Datasets** — adapt the training and evaluation pipeline to support real-world image datasets, with a particular focus on medical imaging. Evaluate whether the capsule architecture can learn meaningful pose representations and produce coherent reconstructions in high-stakes domains where interpretability and spatial equivariance are especially valuable.
+    - [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. One architectural modifications are proposed and should be evaluated: 
+        - 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied.
+
+
+- Reconstruction Analyses
+    - [x] Function: illustrates original image, displaced original image, and displaced reconstruction.
+    - [x] Evaluating reconstruction quality using domain-appropriate metrics such as SSIM and PSNR.
+    - [ ] Create a function where we can track the creation of the image. View the images created by all capsules, and all the images created by the generative units of each capsule. Pay attention to the probability value.
+    - [ ] Find patterns in the relationship between the results and the chosen hyperparameters. The most important hyperparameter for obtaining good results are number of capsule.
+    - [ ] Try diferents "optimizers".
+    
+- Capsules
+    - [ ] Study if different capsules specialize in different classes — and if the gen_out of those capsules "draws" something related to that class.
+    - [ ] Analyze the relationship between unit generative images and individual capsules gradient.
+    - [ ] Analyze the relationship between unit generative images and individual capsules gradient.
+    - [ ] From the generative units of a capsule, we can identify that some never learn. Analyzing them.
+    - [ ] After analyzing the CIFAR10 training with 16 poses and 150 epochs, we can see that gradient flow still existed and some gen_outs were waking up. We should train the model with, for example, 400 epochs to see if the gradient dies, if the generatives stop learning, or if any capsule wakes up later.
+
+- Pose
+    - [x] Pose Equivariance — Graphic the dimension shifted of the vetor pose: Compare shifted vs original. Measure slope and parallelism of linear fits. Achieve > 0.90 for slope; And a good parallelism between the lines of a shifted "+3" and shifted "-3".
+    - [x] Disentanglement / Spatial Independence — Non-shifted Coordinate: verify that the pose estimate along the non-shifted axis remains invariant to a shift applied exclusively along the other axis. That is, when the image is translated in only one direction (x or y), the pose estimate for the orthogonal direction should remain statistically indistinguishable from its value on the original, non-shifted image. This confirms the orthogonality of the learned spatial dimensions. Achieve > 1 for slope.
+    - [ ] Poses.py script on the equivarience results only produces for the X and Y axis. Adapt the code for more axis on {pose_dim}.
     - [ ] Analyze what each cluster represents in the following image. [Análise de Equivariância da Cápsula 18](Results/MNIST/64_25_40_40_0.001_2_4/Test/Equivariance/Capsule_Pose_Analysis/Y/Pose_Equivariance_Cap18.png)  
-- [ ] Try to find patterns in the relationship between the results and the chosen hyperparameters.
-- [ ] Analyze the results when we change the "optimizer".
-- [ ] When the pose value is greater than 2, understand what each number in the pose represents (x, y, rotation, etc.). Test this in the poses.py script.
-- [ ] See if different capsules specialize in different classes — and if the gen_out of those capsules "draws" something related to that class.
-- [ ] Save a `summary.txt` file inside the model's directory containing the detailed network architecture.
-- [ ] Train and test for Norb dataset
-- [ ] Evaluating reconstruction quality using domain-appropriate metrics such as SSIM and PSNR
-- [ ] **Generalise to Real-World Domain-Specific Datasets** — adapt the training and evaluation pipeline to support real-world image datasets, with a particular focus on medical imaging (e.g. X-rays, MRI scans, histology slides). Evaluate whether the capsule architecture can learn meaningful pose representations and produce coherent reconstructions in high-stakes domains where interpretability and spatial equivariance are especially valuable. Key adaptations may include:
-  - Supporting greyscale and multi-channel medical image formats
-  - Handling higher resolution inputs beyond 32×32
-  - Evaluating reconstruction quality using domain-appropriate metrics 
-    such as SSIM and PSNR in addition to MSE
-- [ ] Generalise BatchShift_torch to support arbitrary pose dimensions, currently the function only applies displacement along the X and Y axes. Extend the function to generate a displacement vector R of dimension {pose_dim}.
-- [ ] Poses.py script on the equivarience results only produces for the X and Y axis. Adapt the code for more axis on {pose_dim}.
-- [ ] Train a model with CIFAR dataset with 1 or 2 or 3 {pose_dim}... and analyze the Generative_Plot for each result. In the MNIST Dataset the generative wights draw numbers, look for the same in the CIFAR10
-- [ ] In the generative_Plot there are interesting results, plotting these individual and augmented results to try to better understand the picture (CIFAR10).
-- [ ] After analyzing the images reconstructed by generative and flow capsule gradients, we were able to identify some patterns.
-- [ ] In the images resulting from the gen_out layer, we can see that there are weights that never learn! This requires changing the architecture in some way to bring these weights to life.
-- [ ] After analyzing the CIFAR10 training with 16 poses and 150 epochs, we can see that gradient flow still existed and some gen_outs were waking up. We should train the model with, for example, 400 epochs to see if the gradient dies, if the generatives stop learning, or if any capsule wakes up later.
-- [ ] Pass a single image through the model, show a comparison between the original and the reconstruction. Show all images generated by the generative weights where the probability of that same capsule is greater than 0.7 (or another treshold).
-- [ ] Analyzing the gen_out of MNIST, we can see that the resulting images from the gen_out layer are drawing whole numbers. We can easily see that a gen_out is drawing a 2 or 3, etc. A study would be conducted where I analyze the model's behavior for each individual label and verify which capsules activate and what the resulting image of the generative weights is.
-- [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. Two architectural modifications are proposed and should be evaluated: 
-    - 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied. 
-    - 2º instead of scaling the final reconstructed image by a single scalar probability, apply the probability as a gate on the generative activations before reconstruction. 
-- [ ] To graphically represent the poses of all images in a dataset and color each point according to the label. The expectation is to find clusters.
-- [ ] To study the reconstruction of the image from generative units.
-- [ ] No seu TAE: Extraia o valor de ativação p (probabilidade) de cada cápsula. Descubra qual é a cápsula que disparou o valor mais alto para aquele objeto. Faça o mapeamento de quais recognition units (pesos de entrada) estavam ligados a essa cápsula. Isto gerará um mapa de que "pedaço" da imagem ativou aquela cápsula específica.
-- [ ] Adicionar rede para classificação, fazendo fine-tuning.
-- [ ] Métricas de Disentanglement
-    - β-VAE Score
-    - MIG — Mutual Information Gap
-    - DCI Score — Disentanglement, Completeness, Informativeness
-    - SAP
-- [ ] Adicionar hyperparametro seed 
-
-- [x] Alterei a arquitetura do modelo para lidar com rotação. Á pose esta a ser adicionada o vetor "T" que é diferente ao sugerido pelo HILTON do paper TAE.
+    - [ ] To graphically represent the poses of all images in a dataset and color each point according to the label. The expectation is to find clusters.
 
 
-
+- Architectural Changes
+    - [x] Paper uses a matrix 3×3 for all transformation(translation, rotation, scaling and shearing) and multiplies Pose×Transformation. My model uses a vetor and sum.
 
 ## Credits
 
