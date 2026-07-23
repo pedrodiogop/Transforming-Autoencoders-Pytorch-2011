@@ -321,7 +321,6 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 - Capsules
     - [ ] Study if different capsules specialize in different classes — and if the gen_out of those capsules "draws" something related to that class.
     - [ ] Analyze the relationship between unit generative images and individual capsules gradient.
-    - [ ] Analyze the relationship between unit generative images and individual capsules gradient.
     - [ ] From the generative units of a capsule, we can identify that some never learn. Analyzing them.
     - [ ] After analyzing the CIFAR10 training with 16 poses and 150 epochs, we can see that gradient flow still existed and some gen_outs were waking up. We should train the model with, for example, 400 epochs to see if the gradient dies, if the generatives stop learning, or if any capsule wakes up later.
 

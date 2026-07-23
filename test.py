@@ -2,7 +2,7 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 from aux_functions import Get_Args, BatchShift_torch
-from Class_HeadPose import CustomImageDataset
+# from Class_HeadPose import CustomImageDataset
 import torch
 from CapLayer import CapLayer
 import matplotlib.pyplot as plt
@@ -51,10 +51,12 @@ if __name__ == '__main__':
     DATASET = args.dataset
     LEN_POSE = args.len_pose  
     LR = args.lr  
-    SIZE_DISPLACEMENT = args.size_displacement
+    RANDOM_DISPLACEMENT = args.random_translation
     CUSTOM_DATASET = args.custom_dataset
+    ROTATION_ANGLE = args.rotation_angle
 
-    RESULTS_DIR = f'Results/{DATASET}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LR}_{LEN_POSE}_{SIZE_DISPLACEMENT}'
+
+    RESULTS_DIR = f'Results/{DATASET}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_DISPLACEMENT}_{ROTATION_ANGLE}_{LR}'
     RESULTS_DIR_TEST = f'{RESULTS_DIR}/Test'
     RESULTS_DIR_MINE_DATA_SET = f'{RESULTS_DIR_TEST}/Mine_Dataset'
     RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT = f'{RESULTS_DIR_TEST}/Results_Mine_Test_With_Displacement'
@@ -65,10 +67,10 @@ if __name__ == '__main__':
     os.makedirs(RESULTS_DIR_TEST, exist_ok=True)
 
     ###### ATENTION ######
-    # The hyperparameters SIZE_DISPLACEMENT needs to be the same as the folder name where the model is stored, because it controls the path.
+    # The hyperparameters RANDOM_DISPLACEMENT needs to be the same as the folder name where the model is stored, because it controls the path.
     # If you want to customize the displacement 
     # Uncomment the follow line and set as you wish
-    # SIZE_DISPLACEMENT = 0 # if you want to test only the reconstruction capacity of the model, set this to 0.
+    # RANDOM_DISPLACEMENT = 0 # if you want to test only the reconstruction capacity of the model, set this to 0.
 
     if 'CIFAR' in DATASET:
         padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
@@ -112,8 +114,8 @@ if __name__ == '__main__':
         for i, (img, _) in enumerate(testeloader):
             img = img.to(DEVICE)
             
-            if SIZE_DISPLACEMENT != 0: # with displacement 
-                target, dxy = BatchShift_torch(img, [-SIZE_DISPLACEMENT, SIZE_DISPLACEMENT], padding_mode_sift, DEVICE, LEN_POSE)
+            if RANDOM_DISPLACEMENT != 0: # with displacement 
+                target, dxy = BatchShift_torch(img, [-RANDOM_DISPLACEMENT, RANDOM_DISPLACEMENT], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
                 out = capL_test(img, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)
@@ -123,10 +125,10 @@ if __name__ == '__main__':
                 test_psnr += psnr_score.item()
                 
                 if not CUSTOM_DATASET: # Standard Dataset
-                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}_{SIZE_DISPLACEMENT}', DATASET)
+                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}_{RANDOM_DISPLACEMENT}_{ROTATION_ANGLE}', DATASET)
                     print(f'Img|Out Save in {RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}, interaction = {i}/{num_batch_size}')
                 else:
-                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT}_{SIZE_DISPLACEMENT}', DATASET)
+                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT}_{RANDOM_DISPLACEMENT}_{ROTATION_ANGLE}', DATASET)
                     print(f'Img|Out Save in {RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT}, interaction = {i}/{num_batch_size}')
 
             else: # Analyze only images reconstruction without displacement.
