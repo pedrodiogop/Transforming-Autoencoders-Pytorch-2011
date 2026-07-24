@@ -51,37 +51,45 @@ from torchvision.transforms.functional import to_pil_image
 def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift, device, pose_dim):
     B, _, H, W = imbatch.shape
 
-    # pose_dim deve ser 6 — os 6 elementos da matriz 2×3
-    R = torch.zeros(B, pose_dim, device=device, dtype=torch.float32)
+    R = torch.zeros(B, pose_dim, device=device)
 
     # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
-    dx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
-    dy = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
-
-    angle_deg = (torch.rand(B, device=device)
-                 * (angle_range[1] - angle_range[0])
-                 + angle_range[0])
-    theta_rad = angle_deg * (torch.pi / 180.0)
-
-    cos_t = torch.cos(theta_rad)
-    sin_t = torch.sin(theta_rad)
+    tx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+    ty = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
 
     # ── 2. Normalizar translação ──────────────────────────────────────────────
-    dx_norm = dx / (W / 2.0)
-    dy_norm = dy / (H / 2.0)
+    dx_norm = tx / (W / 2.0)
+    dy_norm = ty / (H / 2.0)
 
-    # ── 3. Preencher R com os 6 elementos da matriz 2×3 ──────────────────────
-    #   | cos(θ)  -sin(θ)   tx |  →  índices [0] [1] [2]
-    #   | sin(θ)   cos(θ)   ty |  →  índices [3] [4] [5]
-    R[:, 0] = cos_t
-    R[:, 1] = -sin_t
-    R[:, 2] = dx_norm
-    R[:, 3] = sin_t
-    R[:, 4] = cos_t
-    R[:, 5] = dy_norm
+    # Generate numbers between - angle_range e angle_range
+    angle_deg = (
+        torch.rand(B, device=device)
+        * (angle_range[1] - angle_range[0])
+        + angle_range[0]
+    )
+
+    # Convert to radianos, because torch only accept that
+    theta = angle_deg * torch.pi / 180
+
+    cos_theta = torch.cos(theta)
+    sin_theta = torch.sin(theta)
+
+
+    R[:,0] = dx_norm
+    R[:,1] = dy_norm
+    R[:,2] = cos_theta
+    R[:,3] = sin_theta
 
     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
-    T = R.view(B, 2, 3)
+    T = torch.zeros(B,2,3,device=device)
+
+    T[:,0,0] = cos_theta
+    T[:,0,1] = -sin_theta
+    T[:,1,0] = sin_theta
+    T[:,1,1] = cos_theta
+
+    T[:,0,2] = dx_norm
+    T[:,1,2] = dy_norm
 
     grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
     shifted = F.grid_sample(imbatch, grid, mode='bilinear',
