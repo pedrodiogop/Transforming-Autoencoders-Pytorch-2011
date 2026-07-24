@@ -306,6 +306,7 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
     - [x] Adapt pose dimension to accept more transformation. 
     - [x] Save a `summary.txt` file inside the model's directory containing the detailed network architecture.
     - [x] Add seed to the hierarchical folder structure.
+
     - [ ] **Generalise to Real-World Domain-Specific Datasets** — adapt the training and evaluation pipeline to support real-world image datasets, with a particular focus on medical imaging. Evaluate whether the capsule architecture can learn meaningful pose representations and produce coherent reconstructions in high-stakes domains where interpretability and spatial equivariance are especially valuable.
     - [ ] The current architecture connects `rec_prob` to the recognition layer (`cap`) and multiplies the final reconstructed image by the presence probability. One architectural modifications are proposed and should be evaluated: 
         - 1º rec_prob connected to the generative layer gen instead of estimating the presence probability from the recognition features, estimate it from the generative representation after the spatial displacement has been applied.
@@ -314,14 +315,15 @@ Reconstruction results on a custom dataset composed of images captured on a mobi
 - Reconstruction Analyses
     - [x] Function: illustrates original image, displaced original image, and displaced reconstruction.
     - [x] Evaluating reconstruction quality using domain-appropriate metrics such as SSIM and PSNR.
-    - [ ] Create a function where we can track the creation of the image. View the images created by all capsules, and all the images created by the generative units of each capsule. Pay attention to the probability value.
+    - [x] Create a function where we can track the creation of the image. View the images created by all capsules, and all the images created by the generative units of each capsule. Pay attention to the probability value.
     - [ ] Find patterns in the relationship between the results and the chosen hyperparameters. The most important hyperparameter for obtaining good results are number of capsule.
     - [ ] Try diferents "optimizers".
     
 - Capsules
     - [ ] Study if different capsules specialize in different classes — and if the gen_out of those capsules "draws" something related to that class.
-    - [ ] Analyze the relationship between unit generative images and individual capsules gradient.
+    - [ ] Analyze the relationship between unit generative weights and individual capsules gradient.
     - [ ] From the generative units of a capsule, we can identify that some never learn. Analyzing them.
+    
     - [ ] After analyzing the CIFAR10 training with 16 poses and 150 epochs, we can see that gradient flow still existed and some gen_outs were waking up. We should train the model with, for example, 400 epochs to see if the gradient dies, if the generatives stop learning, or if any capsule wakes up later.
 
 - Pose
