@@ -30,6 +30,7 @@ if __name__ == '__main__':
     ROTATION_ANGLE = args.rotation_angle
     SEED = args.seed
 
+    print(DEVICE)
     lr = args.lr
     best_loss = 100.0
     set_seed(SEED)
@@ -52,8 +53,10 @@ if __name__ == '__main__':
     trainset = dataset_class(root="tmp", train=True, download=True, transform=ToTensor())
     # num_workers is the number of subprocesses to use for data loading. If num_workers is set to 0, the data will be loaded in the main process. 
     # If num_workers is greater than 0, that many subprocesses will be used to load the data in parallel, which can speed up data loading, especially for large datasets. 
-    trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    torch.backends.cudnn.benchmark = True  # se o tamanho das imagens for fixo
     
+
     if 'CIFAR' in DATASET:
         padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
     else:
@@ -98,95 +101,85 @@ if __name__ == '__main__':
     fake_img = torch.zeros((BATCH_SIZE, IMG_C, IMG_H, IMG_W)).to(DEVICE)
     model_stats = summary(capL, input_data=[fake_img, fake_transformation], verbose=0)
     save_summary_to_file(model_stats, RESULTS_DIR)
-    exit()
 
-    poses = []
+    # poses = []
     loss_history = [] # save the loss for each iteration to plot later
 
     # Initialize dictionaries to store gradient flow data for plotting
-    grad_flow_caps = {} 
-    grad_flow_layers = {
-    'inp_rec': [],
-    'rec_xy': [],
-    'rec_prob': [],
-    'xy_gen': [],
-    'gen_out': []
-}
+#     grad_flow_caps = {} 
+#     grad_flow_layers = {
+#     'inp_rec': [],
+#     'rec_xy': [],
+#     'rec_prob': [],
+#     'xy_gen': [],
+#     'gen_out': []
+# }
 
     # dxy = torch.zeros(size=(BATCH_SIZE, LEN_POSE), device=DEVICE, dtype=torch.float32) 
     len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
+        n_batches = len(trainloader)
+        running_loss = torch.zeros((), device=DEVICE)   # acumula na GPU, sem sync
+        epoch_loss_tensors = []                          # guarda tensores para o plot, sem sync
+        
         for i, (inp, _) in enumerate(trainloader):
-            
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
 
             # inp shape: torch.Size([64, 1, 28, 28])
-            inp = inp.to(DEVICE)
-
-            if RANDOM_TRANSLATION != 0: # with displacement 
-                target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
-                out = capL(inp, dxy)
-                out = out.view(-1, IMG_C, IMG_H, IMG_W)
-                loss = crit(out, target)
-                if i == len_batch_size: # Save the input, output images for the first
-                    Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
-            else: # Analyze only image reconstruction without displacement.
-                dxy = torch.zeros(size=(inp.shape[0], LEN_POSE), device=DEVICE, dtype=torch.float32) 
-                out = capL(inp, dxy)
-                out = out.view(-1, IMG_C, IMG_H, IMG_W) 
-                loss = crit(out, inp)
-                if i == len_batch_size: # Save the input, output images for the first
-                    Save_In_Out_Target_Images(inp, False, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
-
-
-
-            # dxy -> batch of transformations [64, 2]
-            # target -> batch of shifted images [64, 1, 28, 28]
-
-
-            # if i != len_batch_size:
-            # out = capL(inp) 
-            # else: # To Plot all poses
-            #    out, poses, pose_prob = capL(inp, dxy, sep = True)
-
-            # out -> batch of reconstructed images [64, 784] without sigmoid 
-            # R -> batch of poses (x,y) [64, 2]
-            # out = out.view(-1, IMG_C, IMG_H, IMG_W)
-            # out -> batch of reconstructed images [64, 1, 28, 28]
-            # target -> batch of shifted images [64, 1, 28, 28]
-            
-
+            inp = inp.to(DEVICE, non_blocking=True)
+            target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
+            out = capL(inp, dxy)
+            out = out.view(-1, IMG_C, IMG_H, IMG_W)
+            loss = crit(out, target)
+            if i == len_batch_size: # Save the input, output images for the first
+                Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
             loss.backward()
             optimizer.step()
-            current_loss = loss.item()
+            
+            loss_detached = loss.detach()
+            running_loss += loss_detached
 
-            # Save the loss for plotting later
-            loss_history.append(current_loss)
+            if i % 100 == 0:
+                elapsed = time.time() - start_time
+                batches_per_sec = (i + 1) / elapsed
+                eta = (n_batches - i - 1) / batches_per_sec
+                print(f"\rEpoch {epoch+1}/{NUM_EPOCHS} | Batch {i}/{n_batches} "
+                    f"| {batches_per_sec:.2f} batch/s | ETA época: {eta:.1f}s",
+                    end="", flush=True)
+
+
             
             # Save the best model based on the lowest loss
             # Gona use it on test.py
-            if current_loss < best_loss:
-                best_loss = current_loss
-                best_state = {k: v.clone() for k, v in capL.state_dict().items()}
-                torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 
+            # if current_loss < best_loss:
+            #     best_loss = current_loss
+            #     best_state = {k: v.clone() for k, v in capL.state_dict().items()}
+            #     torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 
             # MEAN GRADIENTS FOR EACH CAPSULE
-            grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
+        #    grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
             # MEAN GRADIENTS FOR EACH LAYER 
-            grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
+        #    grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
 
-        PlotGenrative(epoch, capL, IMG_C, IMG_H, IMG_W, RESULTS_DIR_GENERATIVE, num_capsule= NUM_CAPS, num_generative=CAP_GEN)
+        #PlotGenrative(epoch, capL, IMG_C, IMG_H, IMG_W, RESULTS_DIR_GENERATIVE, num_capsule= NUM_CAPS, num_generative=CAP_GEN)
+        current_loss = (running_loss / n_batches).item()
+        # loss_history.extend(torch.stack(epoch_loss_tensors).cpu().tolist())  # 1 sync p/ toda a época
+
+        if current_loss < best_loss:
+            best_loss = current_loss
+            torch.save(capL.state_dict(), f'{RESULTS_DIR}/best_model.pth')
         
         diff_time = time.time() - start_time
-        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(diff_time):.2f} seconds; Loss: {current_loss:.4f}") 
+        
+        print(f"\nEpoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(diff_time):.2f} seconds; Loss: {current_loss:.4f}") 
         Loss_Txt(epoch, NUM_EPOCHS, diff_time, current_loss, RESULTS_DIR_LOSS)
         
         # Save_Gradients(capL, epoch, RESULTS_DIR_GRADIENTS) # For Future Works 
         #Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS, window = 50)
-        Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS)
+        #Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS)
 
-        Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES)
-        Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS)
+        #Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES)
+        #Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS)
         # grad_flow_caps = {}  # if you want a graph for each epoch, reset the gradients after plotting
         # grad_flow_layers = {'inp_rec': [], 'rec_xy': [], 'rec_prob': [], 'xy_gen': [], 'gen_out': []}
 
