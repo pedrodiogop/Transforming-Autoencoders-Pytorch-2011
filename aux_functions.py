@@ -180,20 +180,34 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift
 
     cos_theta = torch.cos(theta)
     sin_theta = torch.sin(theta)
+    # 0°   → [ 1,  0]
+    # 90°  → [ 0,  1]
+    # 180° → [-1,  0]
+    # 270° → [ 0, -1]
+    # 360° → [ 1,  0]
+
+    scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
+
+    shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+    shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+
 
 
     R[:,0] = dx_norm
     R[:,1] = dy_norm
     R[:,2] = cos_theta
     R[:,3] = sin_theta
+    R[:,4] = scale
+    R[:,5] = shear_x
+    R[:,6] = shear_y
 
     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
     T = torch.zeros(B,2,3,device=device)
 
-    T[:,0,0] = cos_theta
-    T[:,0,1] = -sin_theta
-    T[:,1,0] = sin_theta
-    T[:,1,1] = cos_theta
+    T[:,0,0] = cos_theta * scale
+    T[:,0,1] = -sin_theta * scale + shear_x
+    T[:,1,0] = sin_theta * scale + shear_y
+    T[:,1,1] = cos_theta * scale 
 
     T[:,0,2] = dx_norm
     T[:,1,2] = dy_norm

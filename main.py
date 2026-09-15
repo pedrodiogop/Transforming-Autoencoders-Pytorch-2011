@@ -4,14 +4,12 @@ import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-# import matplotlib.pyplot as plt
 from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt, set_seed, save_summary_to_file
 from aux_gradients import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
 import torch.nn as nn
 import time
-# import numpy as np
 
 if __name__ == '__main__':
     args = Get_Args()
@@ -57,10 +55,11 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = True  # se o tamanho das imagens for fixo
     
 
-    if 'CIFAR' in DATASET:
-        padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
-    else:
-        padding_mode_sift = 'zeros'
+    # if 'CIFAR' in DATASET:
+    #     padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
+    # else:
+    
+    padding_mode_sift = 'zeros'
 
         
     # print(f"train: {len(trainloader.dataset)}")
