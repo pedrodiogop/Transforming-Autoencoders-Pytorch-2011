@@ -231,6 +231,7 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
 
 def Input_Target_Output_Images(inp, target, out, file_path):
     inp = inp.detach().cpu()
+    #save_image(out, f'{file_path}/Reconstruction000.png', nrow=1, padding=1, normalize=False, pad_value=0.5)
     out = torch.sigmoid(out).detach().cpu() if ('CIFAR' not in DATASET and 'Mine' not in DATASET) else out.clamp(0, 1).detach().cpu()
 
     if target is not False and target is not None:

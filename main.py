@@ -113,7 +113,7 @@ if __name__ == '__main__':
 #     'xy_gen': [],
 #     'gen_out': []
 # }
-
+    stop = 0 
     # dxy = torch.zeros(size=(BATCH_SIZE, LEN_POSE), device=DEVICE, dtype=torch.float32) 
     len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
     for epoch in range(NUM_EPOCHS):
@@ -148,13 +148,6 @@ if __name__ == '__main__':
                     end="", flush=True)
 
 
-            
-            # Save the best model based on the lowest loss
-            # Gona use it on test.py
-            # if current_loss < best_loss:
-            #     best_loss = current_loss
-            #     best_state = {k: v.clone() for k, v in capL.state_dict().items()}
-            #     torch.save(best_state, f'{RESULTS_DIR}/best_model.pth') 
             # MEAN GRADIENTS FOR EACH CAPSULE
         #    grad_flow_caps = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
             # MEAN GRADIENTS FOR EACH LAYER 
@@ -167,6 +160,12 @@ if __name__ == '__main__':
         if current_loss < best_loss:
             best_loss = current_loss
             torch.save(capL.state_dict(), f'{RESULTS_DIR}/best_model.pth')
+            stop = 0
+        else:
+            stop += 1
+            if stop >= 5:
+                print(f"\nEarly stopping at epoch {epoch+1} due to no improvement in loss for 5 consecutive epochs.")
+                break
         
         diff_time = time.time() - start_time
         

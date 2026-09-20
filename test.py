@@ -63,11 +63,11 @@ if __name__ == '__main__':
 
     RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{lr}_{SEED}'
     RESULTS_DIR_TEST = f'{RESULTS_DIR}/Test'
-    RESULTS_DIR_MINE_DATA_SET = f'{RESULTS_DIR_TEST}/Mine_Dataset'
-    RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT = f'{RESULTS_DIR_TEST}/Results_Mine_Test_With_Displacement'
-    RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITHOUT_DISPLACEMENT = f'{RESULTS_DIR_TEST}/Results_Mine_Test_Without_Displacement'
-    RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT = f'{RESULTS_DIR_TEST}/In_Out_Target_Images_With_Displacement'
-    RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT = f'{RESULTS_DIR_TEST}/In_Out_Target_Images_Without_Displacement'
+    # RESULTS_DIR_MINE_DATA_SET = f'{RESULTS_DIR_TEST}/Mine_Dataset'
+    # RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT = f'{RESULTS_DIR_TEST}/Results_Mine_Test_With_Displacement'
+    # RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITHOUT_DISPLACEMENT = f'{RESULTS_DIR_TEST}/Results_Mine_Test_Without_Displacement'
+    RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_TRANSFORMATION = f'{RESULTS_DIR_TEST}/In_Out_Target_Images_With_Transformation'
+    # RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITHOUT_DISPLACEMENT = f'{RESULTS_DIR_TEST}/In_Out_Target_Images_Without_Displacement'
 
     os.makedirs(RESULTS_DIR_TEST, exist_ok=True)
 
@@ -77,26 +77,26 @@ if __name__ == '__main__':
     # Uncomment the follow line and set as you wish
     # RANDOM_DISPLACEMENT = 0 # if you want to test only the reconstruction capacity of the model, set this to 0.
 
-    if 'CIFAR' in DATASET:
-        padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
-    else:
-        padding_mode_sift = 'zeros'    
+    # if 'CIFAR' in DATASET:
+    #     padding_mode_sift = 'reflection' if DEVICE == 'mps' else 'border'
+    # else:
+    padding_mode_sift = 'zeros'    
 
-    if not CUSTOM_DATASET: # Standard Dataset
-        dataset_class = getattr(datasets, DATASET)
-        test_set = dataset_class(root="tmp", train=False, download=True, transform=ToTensor())
-    else: # Custom Dataset
-        if 'CIFAR' in DATASET: # TO DEFINE THE SHAPE OF THE IMAGES IN THE CUSTOM DATASET
-            IMG_C, IMG_H, IMG_W = 3, 32, 32
-        else: # MNIST or FashionMNIST TO DEFINE THE SHAPE OF THE IMAGES IN THE CUSTOM DATASET 
-            IMG_C, IMG_H, IMG_W = 1, 28, 28
-        test_set = CustomImageDataset(
-            folder_path= RESULTS_DIR_MINE_DATA_SET,
-            img_c= IMG_C,
-            img_h= IMG_H,
-            img_w= IMG_W,
-            transform= ToTensor()
-            )
+    # if not CUSTOM_DATASET: # Standard Dataset
+    dataset_class = getattr(datasets, DATASET)
+    test_set = dataset_class(root="tmp", train=False, download=True, transform=ToTensor())
+    # else: # Custom Dataset
+    #     if 'CIFAR' in DATASET: # TO DEFINE THE SHAPE OF THE IMAGES IN THE CUSTOM DATASET
+    #         IMG_C, IMG_H, IMG_W = 3, 32, 32
+    #     else: # MNIST or FashionMNIST TO DEFINE THE SHAPE OF THE IMAGES IN THE CUSTOM DATASET 
+    #         IMG_C, IMG_H, IMG_W = 1, 28, 28
+    #     test_set = CustomImageDataset(
+    #         folder_path= RESULTS_DIR_MINE_DATA_SET,
+    #         img_c= IMG_C,
+    #         img_h= IMG_H,
+    #         img_w= IMG_W,
+    #         transform= ToTensor()
+    #         )
         
     testeloader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
     sample = testeloader.dataset[0][0]  # (C, H, W)
@@ -105,7 +105,8 @@ if __name__ == '__main__':
 
     capL_test = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_GEN, LEN_POSE)
     capL_test = capL_test.to(DEVICE)
-    crit = nn.MSELoss() if 'CIFAR' in DATASET else nn.BCEWithLogitsLoss() 
+    # crit = nn.MSELoss() if 'CIFAR' in DATASET else nn.BCEWithLogitsLoss() 
+    crit = nn.BCEWithLogitsLoss() 
     ssim = StructuralSimilarityIndexMeasure().to(DEVICE)
     psnr = PeakSignalNoiseRatio(data_range=1.0).to(DEVICE)
 
@@ -131,11 +132,11 @@ if __name__ == '__main__':
                 test_psnr += psnr_score.item()
                 
                 if not CUSTOM_DATASET: # Standard Dataset
-                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}', DATASET)
-                    print(f'Img|Out Save in {RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_DISPLACEMENT}, interaction = {i}/{num_batch_size}')
+                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_TRANSFORMATION}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}', DATASET)
+                    print(f'Img|Out Save in {RESULTS_DIR_IN_OUT_TARGET_IMAGES_WITH_TRANSFORMATION}, interaction = {i}/{num_batch_size}')
                 else:
-                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}', DATASET)
-                    print(f'Img|Out Save in {RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT}, interaction = {i}/{num_batch_size}')
+                    Save_In_Out_Target_Images(img, target, out, i, f'{RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_TRANSFORMATION}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}', DATASET)
+                    print(f'Img|Out Save in {RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_TRANSFORMATION}, interaction = {i}/{num_batch_size}')
 
             # else: # Analyze only images reconstruction without displacement.
             #     dxy = torch.zeros(size=(img.shape[0], LEN_POSE), device=DEVICE, dtype=torch.float32) 

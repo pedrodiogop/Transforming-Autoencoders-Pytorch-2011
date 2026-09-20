@@ -63,7 +63,7 @@ class Capsule(nn.Module):
         dy = normalize_pose[:, 1] + transformation[:, 1]
         cos_t = normalize_pose[:, 2] * transformation[:, 2] - normalize_pose[:, 3] * transformation[:, 3]
         sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
-        scale = pose_scale + (transformation[:, 4] - 1.0) 
+        scale = pose_scale + transformation[:, 4] 
         shear_x = pose_shear_x + transformation[:, 5]
         shear_y = pose_shear_y + transformation[:, 6]
 

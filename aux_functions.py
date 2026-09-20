@@ -58,7 +58,7 @@ def Get_Args():
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
     parser.add_argument('--dataset',    type=str,   default='MNIST', choices=['MNIST', 'FashionMNIST', 'CIFAR10', 'SmallNORB'])
-    parser.add_argument('--len_pose',    type=int,   default=4, help='Capsule pose vector length. Minimum need to be 4, this includes translation and rotation. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
+    parser.add_argument('--len_pose',    type=int,   default=7, help='Capsule pose vector length. Minimum need to be 4, this includes translation and rotation. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
     parser.add_argument('--random_translation',    type=int,   default=4, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
     parser.add_argument('--rotation_angle',    type=int,   default=30, help='To control range of rotation angles.')
     parser.add_argument('--seed',    type=int,   default=42, help='Random seed for reproducibility.')
@@ -188,16 +188,24 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift
 
     scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
 
-    shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
-    shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+    # shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+    # shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
 
+    shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
+    shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+    
+    shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
+    shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
 
+    shear_x = torch.tan(shear_angle_rad_x)
+    shear_y = torch.tan(shear_angle_rad_y)
+    
 
     R[:,0] = dx_norm
     R[:,1] = dy_norm
     R[:,2] = cos_theta
     R[:,3] = sin_theta
-    R[:,4] = scale
+    R[:,4] = scale - 1.0
     R[:,5] = shear_x
     R[:,6] = shear_y
 
