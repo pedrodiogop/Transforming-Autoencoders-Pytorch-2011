@@ -201,7 +201,7 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift
     shear_y = torch.tan(shear_angle_rad_y)
     
 
-    R[:,0] = dx_norm
+    R[:,0] = - dx_norm
     R[:,1] = dy_norm
     R[:,2] = cos_theta
     R[:,3] = sin_theta
