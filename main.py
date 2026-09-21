@@ -4,7 +4,7 @@ import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt, set_seed, save_summary_to_file
+from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt, set_seed, save_summary_to_file, BatchShift_torch_Rotation
 from aux_gradients import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
@@ -127,7 +127,9 @@ if __name__ == '__main__':
 
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE, non_blocking=True)
-            target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
+            BatchShift_torch_Rotation
+            target, dxy = BatchShift_torch_Rotation(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
+            # target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
             out = capL(inp, dxy)
             out = out.view(-1, IMG_C, IMG_H, IMG_W)
             loss = crit(out, target)
@@ -163,8 +165,8 @@ if __name__ == '__main__':
             stop = 0
         else:
             stop += 1
-            if stop >= 5:
-                print(f"\nEarly stopping at epoch {epoch+1} due to no improvement in loss for 5 consecutive epochs.")
+            if stop >= 10:
+                print(f"\nEarly stopping at epoch {epoch+1} due to no improvement in loss for 10 consecutive epochs.")
                 break
         
         diff_time = time.time() - start_time

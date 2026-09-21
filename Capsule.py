@@ -51,23 +51,43 @@ class Capsule(nn.Module):
         # print('prb', prb.size()) 
         # prb torch.Size([64, 1])
 
-        # Normalizar a pose para respeitar a regra: cos2+sin2​=1 
-        pose_trans = pose[:, 0:2]
-        pose_rot = F.normalize(pose[:, 2:4], p=2, dim=1) # porque estamos a nomralizar?
-        pose_scale = pose[:, 4]
-        pose_shear_x = pose[:, 5]
-        pose_shear_y = pose[:, 6]
-        normalize_pose = torch.cat([pose_trans, pose_rot], dim=1)
-        # R[:,0] = dx_norm R[:,1] = dy_norm R[:,2] = cos_theta R[:,3] = sin_theta
-        dx = normalize_pose[:, 0] + transformation[:, 0]
-        dy = normalize_pose[:, 1] + transformation[:, 1]
-        cos_t = normalize_pose[:, 2] * transformation[:, 2] - normalize_pose[:, 3] * transformation[:, 3]
-        sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
-        scale = pose_scale + transformation[:, 4] 
-        shear_x = pose_shear_x + transformation[:, 5]
-        shear_y = pose_shear_y + transformation[:, 6]
+        ##### Codigo oficial ######
+        # # Normalizar a pose para respeitar a regra: cos2+sin2​=1 
+        # pose_trans = pose[:, 0:2]
+        # pose_rot = F.normalize(pose[:, 2:4], p=2, dim=1) # porque estamos a nomralizar?
+        # pose_scale = pose[:, 4]
+        # pose_shear_x = pose[:, 5]
+        # pose_shear_y = pose[:, 6]
+        # normalize_pose = torch.cat([pose_trans, pose_rot], dim=1)
+        # # R[:,0] = dx_norm R[:,1] = dy_norm R[:,2] = cos_theta R[:,3] = sin_theta
+        # dx = normalize_pose[:, 0] + transformation[:, 0]
+        # dy = normalize_pose[:, 1] + transformation[:, 1]
+        # cos_t = normalize_pose[:, 2] * transformation[:, 2] - normalize_pose[:, 3] * transformation[:, 3]
+        # sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
+        # scale = pose_scale + transformation[:, 4] 
+        # shear_x = pose_shear_x + transformation[:, 5]
+        # shear_y = pose_shear_y + transformation[:, 6]
 
-        transformer_pose = torch.stack([dx, dy, cos_t, sin_t, scale, shear_x, shear_y], dim=1)
+        ##### Rotação com 1 dimensao ######
+        # Normalizar a pose para respeitar a regra: cos2+sin2​=1 
+        #pose_trans = pose[:, 0:2]
+        #pose_rot = F.normalize(pose[:, 2:4], p=2, dim=1) # porque estamos a nomralizar?
+        pose_scale = pose[:, 3]
+        pose_shear_x = pose[:, 4]
+        pose_shear_y = pose[:, 5]
+        # normalize_pose = torch.cat([pose_trans, pose_rot], dim=1)
+        # R[:,0] = dx_norm R[:,1] = dy_norm R[:,2] = cos_theta R[:,3] = sin_theta
+        dx = pose[:, 0] + transformation[:, 0]
+        dy = pose[:, 1] + transformation[:, 1]
+        rotation = pose[:, 2] + transformation[:, 2]
+        # sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
+        scale = pose_scale + transformation[:, 3] 
+        shear_x = pose_shear_x + transformation[:, 4]
+        shear_y = pose_shear_y + transformation[:, 5]
+
+        
+
+        transformer_pose = torch.stack([dx, dy, rotation, scale, shear_x, shear_y], dim=1)
         
 
         # print('x_y + del', (x_y + delxy).size()) 
