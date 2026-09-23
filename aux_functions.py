@@ -119,7 +119,7 @@ def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, padding_
     R[:,1] = dy_norm
     R[:,2] = angle_normalized 
     #R[:,3] = sin_theta
-    R[:,3] = scale - 1.0
+    R[:,3] = 1.0 - scale
     R[:,4] = shear_x
     R[:,5] = shear_y
 
@@ -278,7 +278,7 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift
     R[:,1] = dy_norm
     R[:,2] = cos_theta
     R[:,3] = sin_theta
-    R[:,4] = scale - 1.0
+    R[:,4] = 1.0 - scale
     R[:,5] = shear_x
     R[:,6] = shear_y
 
