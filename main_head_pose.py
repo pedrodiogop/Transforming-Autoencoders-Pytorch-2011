@@ -84,7 +84,7 @@ if __name__ == '__main__':
     capL = capL.to(DEVICE)
     
 
-    crit = nn.MSELoss()
+    crit = nn.MSELoss() # experimentar SmoothL1Loss
     optimizer = optim.Adam(capL.parameters(), lr)  
 
     # To check the model architecture 
@@ -116,6 +116,7 @@ if __name__ == '__main__':
             pose_diff = pose_diff.to(DEVICE, non_blocking=True)
             output = capL(image_A, pose_diff) 
             output = output.view(-1, IMG_C, IMG_H, IMG_W) 
+            # aplicar sigmoid a saida e remover o clamp na visualização da imgem
             loss = crit(output, image_B)
             if i == len_batch_size:
                 Save_In_Out_Target_Images(image_A, image_B, output, epoch, i,
