@@ -11,6 +11,8 @@ import torch.optim as optim
 import torch.nn as nn
 import time
 
+# source venv/bin/activate
+
 if __name__ == '__main__':
     args = Get_Args()
     # If you want to see your GPU or CPU in action, you can use the following code to check if PyTorch recognizes it and to set the device accordingly:
@@ -27,6 +29,9 @@ if __name__ == '__main__':
     RANDOM_TRANSLATION = args.random_translation
     ROTATION_ANGLE = args.rotation_angle
     SEED = args.seed
+    SCALE_MIN = args.scale_min
+    SCALE_MAX = args.scale_max
+    SHEAR = args.shear
 
     print(DEVICE)
     lr = args.lr
@@ -34,7 +39,7 @@ if __name__ == '__main__':
     set_seed(SEED)
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{lr}_{SEED}'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}'
     RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'
@@ -127,13 +132,12 @@ if __name__ == '__main__':
 
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE, non_blocking=True)
-            BatchShift_torch_Rotation
-            target, dxy = BatchShift_torch_Rotation(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
+            target, dxy = BatchShift_torch_Rotation(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], [SCALE_MIN, SCALE_MAX], [-SHEAR, SHEAR], padding_mode_sift, DEVICE, LEN_POSE)
             # target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
             out = capL(inp, dxy)
             out = out.view(-1, IMG_C, IMG_H, IMG_W)
             loss = crit(out, target)
-            if i == len_batch_size: # Save the input, output images for the first
+            if i == len_batch_size and epoch % 5 == 0: # Save the input, output images for the first
                 Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
             loss.backward()
             optimizer.step()

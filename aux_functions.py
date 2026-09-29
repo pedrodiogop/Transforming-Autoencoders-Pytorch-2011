@@ -52,22 +52,25 @@ def Get_Args():
     
     parser.add_argument('--device',     type=str,   default='cpu',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
     parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
-    parser.add_argument('--epochs',     type=int,   default=40,     help='Number of epochs to train')
+    parser.add_argument('--epochs',     type=int,   default=400,     help='Number of epochs to train')
     parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
     parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
     parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
     parser.add_argument('--dataset',    type=str,   default='MNIST', choices=['MNIST', 'FashionMNIST', 'CIFAR10', 'SmallNORB'])
     parser.add_argument('--len_pose',    type=int,   default=7, help='Capsule pose vector length. Minimum need to be 4, this includes translation and rotation. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
-    parser.add_argument('--random_translation',    type=int,   default=4, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
-    parser.add_argument('--rotation_angle',    type=int,   default=30, help='To control range of rotation angles.')
+    parser.add_argument('--random_translation',    type=int,   default=5, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
+    parser.add_argument('--rotation_angle',    type=int,   default=45, help='To control range of rotation angles.')
+    parser.add_argument('--scale_min',    type=float,   default=1.5, help='To control range of scale min.')
+    parser.add_argument('--scale_max',    type=float,   default=0.85, help='To control range of scale max.')
+    parser.add_argument('--shear',    type=int,   default=25, help='To control range of shear angles.')
     parser.add_argument('--seed',    type=int,   default=42, help='Random seed for reproducibility.')
     parser.add_argument('--custom_dataset', action='store_true', help='Specifically for test.py script. To use this feature, you must create a folder named "Mine_Dataset" inside the folder "Test" and place your custom dataset inside it.')
     parser.add_argument('--norb_path', type=str, default='./temp/data_small_norb', help='Path para os ficheiros .mat do smallNORB')
     
     return parser.parse_args()
 
-def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift, device, pose_dim):
+def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, scale_range, shear_range, padding_mode_sift, device, pose_dim):
     B, _, H, W = imbatch.shape
 
     R = torch.zeros(B, pose_dim, device=device)
@@ -100,36 +103,41 @@ def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, padding_
     # 270° → [ 0, -1]
     # 360° → [ 1,  0]
 
-    scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
+    # scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
+    scale_x = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+    scale_y = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
 
-    # shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
-    # shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
-
-    shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
-    shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+    # shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
+    # shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
     
-    shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
+    # shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
+    # shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+    shear_angle_deg_x = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+    shear_angle_deg_y = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+
+    shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
     shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
 
     shear_x = torch.tan(shear_angle_rad_x)
     shear_y = torch.tan(shear_angle_rad_y)
     
 
-    R[:,0] = dx_norm
+    R[:,0] = - dx_norm
     R[:,1] = dy_norm
     R[:,2] = angle_normalized 
     #R[:,3] = sin_theta
-    R[:,3] = 1.0 - scale
-    R[:,4] = shear_x
-    R[:,5] = shear_y
+    R[:,3] = 1.0 - scale_x
+    R[:,4] = 1.0 - scale_y
+    R[:,5] = shear_x
+    R[:,6] = shear_y
 
     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
     T = torch.zeros(B,2,3,device=device)
 
-    T[:,0,0] = cos_theta * scale
-    T[:,0,1] = -sin_theta * scale + shear_x
-    T[:,1,0] = sin_theta * scale + shear_y
-    T[:,1,1] = cos_theta * scale 
+    T[:,0,0] = cos_theta * scale_x
+    T[:,0,1] = -sin_theta * scale_y + shear_x
+    T[:,1,0] = sin_theta * scale_x + shear_y
+    T[:,1,1] = cos_theta * scale_y
 
     T[:,0,2] = dx_norm
     T[:,1,2] = dy_norm

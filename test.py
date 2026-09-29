@@ -15,7 +15,7 @@ from torchmetrics.image import PeakSignalNoiseRatio
 import torch.nn.functional as F
 
 
-def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift, device, pose_dim):
+def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, scale_range, shear_range, padding_mode_sift, device, pose_dim):
     B, _, H, W = imbatch.shape
 
     R = torch.zeros(B, pose_dim, device=device)
@@ -28,14 +28,18 @@ def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, padding_
     dx_norm = tx / (W / 2.0)
     dy_norm = ty / (H / 2.0)
 
-    # # Generate numbers between - angle_range e angle_range
-    # angle_deg = (
-    #     torch.rand(B, device=device)
-    #     * (angle_range[1] - angle_range[0])
-    #     + angle_range[0]
-    # )
+    # dx_norm = torch.tensor(0.0, device= device).float()
+    # dy_norm = torch.tensor(0.0, device= device).float()
 
-    angle_deg = torch.tensor([50.0], device=device)  
+    # Generate numbers between - angle_range e angle_range
+    angle_deg = (
+        torch.rand(B, device=device)
+        * (angle_range[1] - angle_range[0])
+        + angle_range[0]
+    )
+    
+    # angle_deg = torch.tensor(0.0, device= device).float()
+
 
     angle_normalized = angle_deg / 180.0
 
@@ -50,53 +54,56 @@ def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, padding_
     # 270° → [ 0, -1]
     # 360° → [ 1,  0]
 
-    scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
 
-    # shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
-    # shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+    # scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
+    scale_x = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+    scale_y = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
 
-    shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
+    # scale_x = torch.tensor(1.5, device= device).float()
+    # scale_y = torch.tensor(1.5, device= device).float()
+
+
+
+    shear_angle_deg_x = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+    shear_angle_deg_y = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+
+
+    # shear_angle_deg_x = torch.tensor(0.0, device= device).float()
+    # shear_angle_deg_y = torch.tensor(0.0, device= device).float()
+
     shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
-    
-    shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
     shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
 
     shear_x = torch.tan(shear_angle_rad_x)
     shear_y = torch.tan(shear_angle_rad_y)
+
     
 
-    R[:,0] = 0 # dx_norm
-    R[:,1] = 0 #dy_norm
+    R[:,0] = - dx_norm
+    R[:,1] = dy_norm
     R[:,2] = angle_normalized 
     #R[:,3] = sin_theta
-    R[:,3] = 0 # scale - 1.0
-    R[:,4] = 0 # shear_x
-    R[:,5] = 0 # shear_y
+    R[:,3] = 1.0 - scale_x
+    R[:,4] = 1.0 - scale_y
+    R[:,5] = shear_x
+    R[:,6] = shear_y
 
     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
     T = torch.zeros(B,2,3,device=device)
 
-    # T[:,0,0] = cos_theta * scale
-    # T[:,0,1] = -sin_theta * scale + shear_x
-    # T[:,1,0] = sin_theta * scale + shear_y
-    # T[:,1,1] = cos_theta * scale 
+    T[:,0,0] = cos_theta * scale_x
+    T[:,0,1] = -sin_theta * scale_y + shear_x
+    T[:,1,0] = sin_theta * scale_x + shear_y
+    T[:,1,1] = cos_theta * scale_y
 
-    # T[:,0,2] = dx_norm
-    # T[:,1,2] = dy_norm
-
-    T[:,0,0] = cos_theta
-    T[:,0,1] = -sin_theta
-    T[:,1,0] = sin_theta 
-    T[:,1,1] = cos_theta  
-
-    T[:,0,2] = 0
-    T[:,1,2] = 0
+    T[:,0,2] = dx_norm
+    T[:,1,2] = dy_norm
 
     grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
     shifted = F.grid_sample(imbatch, grid, mode='bilinear',
                             padding_mode=padding_mode_sift, align_corners=False)
 
-    return shifted, R
+    return shifted, R 
 
 def Save_In_Out_Target_Images(inp, target, out, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
     inp = inp.detach().cpu()
@@ -141,12 +148,16 @@ if __name__ == '__main__':
     SEED = args.seed
     CUSTOM_DATASET = args.custom_dataset
     SEED = args.seed
+    SCALE_MIN = args.scale_min
+    SCALE_MAX = args.scale_max
+    SHEAR = args.shear
+
 
     lr = args.lr
     set_seed(SEED)
 
 
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{lr}_{SEED}'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}'
     RESULTS_DIR_TEST = f'{RESULTS_DIR}/Test'
     # RESULTS_DIR_MINE_DATA_SET = f'{RESULTS_DIR_TEST}/Mine_Dataset'
     # RESULTS_DIR_MINE_TEST_IN_OUT_TARGET_WITH_DISPLACEMENT = f'{RESULTS_DIR_TEST}/Results_Mine_Test_With_Displacement'
@@ -207,7 +218,7 @@ if __name__ == '__main__':
             
             if RANDOM_TRANSLATION != 0: # with displacement 
                 # target, dxy = BatchShift_torch(img, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
-                target, dxy = BatchShift_torch_Rotation(img, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
+                target, dxy = BatchShift_torch_Rotation(img, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], [SCALE_MIN, SCALE_MAX], [-SHEAR, SHEAR], padding_mode_sift, DEVICE, LEN_POSE)
                 out = capL_test(img, dxy)
                 out = out.view(-1, IMG_C, IMG_H, IMG_W)
                 loss = crit(out, target)
