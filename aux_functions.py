@@ -50,7 +50,7 @@ import torch.nn.functional as F
 def Get_Args():
     parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
     
-    parser.add_argument('--device',     type=str,   default='cpu',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
+    parser.add_argument('--device',     type=str,   default='cuda',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
     parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
     parser.add_argument('--epochs',     type=int,   default=400,     help='Number of epochs to train')
     parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
@@ -69,6 +69,30 @@ def Get_Args():
     parser.add_argument('--norb_path', type=str, default='./temp/data_small_norb', help='Path para os ficheiros .mat do smallNORB')
     
     return parser.parse_args()
+
+def Get_Args_SmallNorb():
+    parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
+    
+    parser.add_argument('--device',     type=str,   default='cuda',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
+    parser.add_argument('--batch_size', type=int,   default=256,    help='Batch size for training')
+    parser.add_argument('--epochs',     type=int,   default=400,     help='Number of epochs to train')
+    parser.add_argument('--iter_per_epoch',     type=int,   default=10000,     help='Number of iterations per epoch')
+    parser.add_argument('--eval_batches',     type=int,   default=1000,     help='Number of batches to evaluate on')
+    parser.add_argument('--num_caps',   type=int,   default=100,    help='Number of capsules')
+    parser.add_argument('--cap_rec',    type=int,   default=200,   help='Capsule reconstruction dimension')
+    parser.add_argument('--cap_gen',    type=int,   default=200,   help='Capsule generation dimension')
+    parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
+    parser.add_argument('--dataset',    type=str,   default='SmallNorb')
+    parser.add_argument('--len_pose',    type=int,   default=3, help='Capsule pose vector length.')
+    parser.add_argument('--seed',    type=int,   default=42, help='Random seed for reproducibility.')
+    parser.add_argument('--dataset_path', type=str, default='tmp/data_small_norb', help='Path para os ficheiros .mat do smallNORB')
+    parser.add_argument('--img_size', type=int, default='96', help='If you want to resize the image')
+    parser.add_argument('--p_loss_fuct_fg', type=float, default='0.85', help='Weight for object loss')
+    parser.add_argument('--thr', type=float, default='0.1', help='Threshold for pixel difference to consider as object')
+    parser.add_argument('--k_kernel', type=int, default='1', help='Size of the kernel for smoothing the mask')
+
+    return parser.parse_args()
+
 
 def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, scale_range, shear_range, padding_mode_sift, device, pose_dim):
     B, _, H, W = imbatch.shape
@@ -352,5 +376,12 @@ def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift
 def Loss_Txt(epoch, NUM_EPOCHS, time, current_loss, RESULTS_DIR_LOSS): 
     os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
     text = f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {time:.2f} seconds; Loss: {current_loss:.4f}\n"
+    with open(f'{RESULTS_DIR_LOSS}/Log_Treino.txt', "a", encoding="utf-8") as f:
+        f.write(text)
+        
+
+def Loss_Txt_Small_Norb(epoch, NUM_EPOCHS, time, train_loss, train_mse_fg, train_mse_bg, train_mse_original, test_loss, test_mse_fg, test_mse_bg, test_mse_original, RESULTS_DIR_LOSS): 
+    os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
+    text = f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {time:.2f} seconds; Train Loss: {train_loss:.4f}; Train mse_fg: {train_mse_fg:.4f}; Train mse_bg: {train_mse_bg:.4f}; Train mse_original: {train_mse_original:.4f}; Test Loss: {test_loss:.4f}; Test mse_fg: {test_mse_fg:.4f}; Test mse_bg: {test_mse_bg:.4f}; Test mse_original: {test_mse_original:.4f}\n"
     with open(f'{RESULTS_DIR_LOSS}/Log_Treino.txt', "a", encoding="utf-8") as f:
         f.write(text)

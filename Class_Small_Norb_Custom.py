@@ -6,9 +6,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import math
 
-
-
-class SmallNORBPairDataset(Dataset):
+class SmallNORBPairDataset_Custom(Dataset):
 
     _FILES = {
         'train': {
@@ -41,11 +39,11 @@ class SmallNORBPairDataset(Dataset):
 
         # Carregar dados brutos
         self.l_images     = self._load_l_images()    # 24300x96x96
-        self.r_images     = self._load_r_images()    # 24300x96x96
+        # self.r_images     = self._load_r_images()    # 24300x96x96
         self.categories = self._load_categories()    # (N,) todas as categorias
         self.info       = self._load_info()          # (N, 4): instance, elev, azim, light
 
-        # self.info_categoria_l, self.info_categoria_r  = self._pre_processemnt_join_img_labels()
+        self._filter_subset(elev_idx, azim_idx, light_idx)
         
         self._pre_processemnt_join_img_labels()
 
@@ -96,6 +94,29 @@ class SmallNORBPairDataset(Dataset):
     def _load_info(self):
         return self._load_mat(self._path('info'))   # (N, 4)
 
+    def _filter_subset(self, elev_idx, azim_idx, light_idx):
+        """Mantém apenas as imagens cujos índices de (elevação, azimute,
+        iluminação) pertencem aos conjuntos indicados. None = sem restrição."""
+        info = self.info.reshape(len(self.info), -1)   # (N, 4): ins, elev, azim, light
+        mask = np.ones(len(info), dtype=bool)
+
+        if elev_idx is not None:
+            mask &= np.isin(info[:, 1], elev_idx)
+        if azim_idx is not None:
+            mask &= np.isin(info[:, 2], azim_idx)
+        if light_idx is not None:
+            mask &= np.isin(info[:, 3], light_idx)
+
+        self.l_images   = self.l_images[mask]
+        self.categories = self.categories[mask]
+        self.info       = info[mask]
+        
+        print(self.info.shape)                 # esperado: (24300, 4)
+        print(np.unique(self.info[:, 1]))      # elevação: 0..8
+        print(np.unique(self.info[:, 2]))      # azimute: 0,2,...,34
+        print(np.unique(self.info[:, 3]))      # iluminação: 0..5
+        print(mask.sum(), self.l_images.shape) # esperado: 675, (675, 96, 96)
+
     def _pre_processemnt_join_img_labels(self):
         categorias = self.categories
         info = self.info
@@ -128,7 +149,7 @@ class SmallNORBPairDataset(Dataset):
         info_categoria_l = np.insert(info_categoria_l, 4, pixel_images_l, axis=1)
         # info_categoria_r = np.insert(info_categoria_r, 4, pixel_images_r, axis=1)
 
-        # colunas de info_categoria_l: [ins, categ, ele, azim, pixel, idx]
+        # colunas de info_categoria_l: [ins, categ, ele, azim, pixel]
 
         # ---------- agrupamento por (categoria, instância) ----------
         ins   = info_categoria_l[:, 0]        # (24300,) instância de cada imagem
@@ -136,7 +157,6 @@ class SmallNORBPairDataset(Dataset):
 
         # (24300, 2): uma linha (categ, ins) por imagem
         pares_grupo = np.stack([categ, ins], axis=1)
-        # print(pares_grupo[:20])
         # print(pares_grupo.shape) # (24300, 2)
 
         # número do grupo (0..24) de cada imagem
@@ -184,54 +204,3 @@ class SmallNORBPairDataset(Dataset):
             # transf_r = self.attrs_r[t] - self.attrs_r[i]
             return (self.base_transform(self.l_images[i]), self.base_transform(self.l_images[t]), transf_l)
             # return (self.base_transform(self.l_images[i]), self.base_transform(self.l_images[t]), self.base_transform(self.r_images[i]), self.base_transform(self.r_images[t]), transf_l, transf_r)
-
-    # Codigo antes de Claude
-    # def _pre_processemnt_join_img_labels(self):
-    #     # na ordenação da Lighting ver primeiro quais numeros sao os mais claros e escuros 
-    #     categorias = self.categories
-    #     info = self.info
-    #     l_images = self.l_images
-    #     r_images = self.r_images
-
-    #     info_categoria = np.insert(info, 1, categorias, axis=1) 
-    #     # info_categoria [intancia, categoria, ele, azh, ilum]
-    #     info_categoria = info_categoria.astype(np.float32)
-    #     info_categoria[:, 2] = ((info_categoria[:, 2] + 30 + info_categoria[:, 2] * 4) - 50) / 25
-    #     info_categoria[:, 3] = ((info_categoria[:, 3] * 10) - 160) / 200
-    #     info_categoria = np.delete(info_categoria, -1, axis=1) # --> returns new array
-
-    #     idx = np.arange(info_categoria.shape[0])  # 0.0, 1.0, 2.0, ...
-    #     info_categoria = np.column_stack((info_categoria, idx))
-        
-    #     info_categoria_l = info_categoria.copy()
-    #     info_categoria_r = info_categoria.copy()
-
-    #     pixel_images_l = l_images[:, 0, 0] / 255.0
-    #     pixel_images_r = r_images[:, 0, 0] / 255.0
-
-    #     info_categoria_l = np.insert(info_categoria_l, 4, pixel_images_l, axis=1) 
-    #     info_categoria_r = np.insert(info_categoria_r, 4, pixel_images_r, axis=1) 
-
-    #     v_idx_transf = [] # shape = (24300, 5)
-    #     for ins_i, categ_i, ele_i, azim_i, light_i, idx_i in info_categoria_l:
-    #         for ins_t, categ_t, ele_t, azim_t, light_t, idx_t in info_categoria_l: 
-    #             if ins_i == ins_t and categ_i == categ_t:
-    #                 v_idx_transf.append([
-    #                     idx_i, 
-    #                     idx_t, 
-    #                     ele_t - ele_i, 
-    #                     azim_t - azim_i , 
-    #                     light_t - light_i 
-    #                     ])
-    #     v_idx_transf = np.array(v_idx_transf)
-    #     print(len(v_idx_transf)) # 23 619 600
-    #     print(v_idx_transf.shape) # (23 619 600, 5)
-
-    #     # # chaves: da menos importante para a mais importante
-    #     # ordem = np.lexsort((info_categoria[:, 3],   # 4º critério
-    #     #     info_categoria[:, 2],   # 3º critério
-    #     #     info_categoria[:, 1],   # 2º critério
-    #     #     info_categoria[:, 0]))  # 1º critério (principal)
-    #     # info_categoria = info_categoria[ordem]
-
-    #     return info_categoria_l, info_categoria_r

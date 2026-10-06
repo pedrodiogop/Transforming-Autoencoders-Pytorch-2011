@@ -1,4 +1,4 @@
-from Capsule import Capsule
+from Capsule_Small_Norb import Capsule
 import torch.nn as nn
 import torch
 import torch.nn.functional as F

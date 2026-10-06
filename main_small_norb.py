@@ -1,23 +1,86 @@
 import os
-from pyexpat import model
 from torchinfo import summary
 import torch
-from torchvision import datasets
-from torchvision.transforms import ToTensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 import matplotlib.pyplot as plt
-from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt
+from aux_functions import Get_Args_SmallNorb, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt_Small_Norb, set_seed, save_summary_to_file
 from aux_gradients import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
 import torch.nn as nn
 import time
 import numpy as np
-from SmallNORBPairDataset import SmallNORBPairDataset
+import torchvision
+from Class_Small_Norb import SmallNORBPairDataset
+import torch.nn.functional as F
 
+def fg_mask(img, thr):
+    #bg = img[:, :, :1, :1] 
+    bg = img.flatten(1).median(dim=1).values.view(-1, 1, 1, 1) # (B, 1, 1, 1) -> median along H*W
+    return ((img - bg).abs() > thr).float()
+
+def make_mask(x, target, thr, k):
+    with torch.no_grad():
+        #m = torch.maximum(fg_mask(x, thr), fg_mask(target, thr))
+        # stride 1 e padding k//2 para manter o tamanho da máscara igual ao da imagem
+        m = fg_mask(target, thr)
+        m = F.max_pool2d(m, k, stride=1, padding=k // 2) # o k controla a dilatação da máscara, para cobrir melhor o objeto. Tem de ser impar para a a mascara ter o mesmo tamanho da imagem.
+    return m
+
+def mse_fg_bg(out, target, m, eps=1e-8):
+    se = (out - target) ** 2
+    mse_fg = (se * m).sum() / (m.sum() + eps)
+    mse_bg = (se * (1 - m)).sum() / ((1 - m).sum() + eps)
+    return mse_fg, mse_bg
+
+def loss_fn(out, target, x, w_fg, thr, k):
+    m = make_mask(x, target, thr, k) # (n, 1, H, W), valores 0/1
+    mse_fg, mse_bg = mse_fg_bg(out, target, m)
+    loss = w_fg * mse_fg + (1 - w_fg) * mse_bg
+    return loss, mse_fg, mse_bg
+
+def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
+    os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
+    
+    inp = inp.detach().cpu()
+    out = out.clamp(0, 1).detach().cpu() # out = torch.sigmoid(out).detach().cpu()  # 
+    target = target.detach().cpu()
+    batch = torch.cat([inp, target, out], dim=3)
+    
+         
+    im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=False, padding=2, pad_value=0.5)
+    # To have the real values we need to set normalize=False. 
+    # This way the reconstrution image is not manipulated from the original
+    # im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=True, padding=2, pad_value=0.5) 
+    img = np.transpose(im_tensor.numpy(), (1, 2, 0))
+    # img = np.clip(img, 0, 1) 
+    
+    diretorio = f'{RESULTS_DIR_IN_OUT_TARGET_IMAGES}/Epoch_{epoch:03d}'
+    os.makedirs(diretorio, exist_ok=True)
+    caminho = os.path.join(diretorio, f'batch_{i:05d}.png')
+    plt.imsave(caminho, img)
+
+
+@torch.no_grad()
+def evaluate(model, loader, device, img_shape, p_loss_fg, thr_image_object, k_kernel):
+    """Loss média no conjunto de teste (sem gradientes)."""
+    model.eval()
+    tot = torch.zeros(4, device=device)
+    n_batches = len(loader)
+    for x, target, transf in loader:
+        x = x.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)
+        transf = transf.to(device, non_blocking=True)
+
+        out = model(x, transf).view(-1, *img_shape)
+        loss, mse_fg, mse_bg = loss_fn(out, target, x, p_loss_fg, thr_image_object, k_kernel)
+        mse = ((out - target) ** 2).mean()
+        tot += torch.stack([loss, mse_fg, mse_bg, mse])
+    model.train()
+    return (tot / n_batches).tolist()
 
 if __name__ == '__main__':
-    args = Get_Args()
+    args = Get_Args_SmallNorb()
 
     # If you want to see your GPU or CPU in action, you can use the following code to check if PyTorch recognizes it and to set the device accordingly:
     # device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
@@ -29,125 +92,179 @@ if __name__ == '__main__':
     CAP_REC = args.cap_rec # encode the image
     CAP_GEN = args.cap_gen # decode the image
     LEN_POSE = args.len_pose
-    PATH_DATASET_NORB = "tmp/data_small_norb"
-    DATASET = "SmallNORB" 
+    SEED = args.seed
+    DATASET = args.dataset 
+    PATH_DATASET_NORB = args.dataset_path
+    IMAGE_SIZE = args.img_size
+    ITERS_PER_EPOCH = args.iter_per_epoch     # nº de batches por "epoch"
+    EVAL_BATCHES = args.eval_batches         # nº de batches no teste a cada epoch
+    CROP = 80
+    P_LOSS_FG = args.p_loss_fuct_fg
+    THR_IMAGE_OBJECT = args.thr
+    K_KERNEL = args.k_kernel
 
+    PATIENCE = 20
+    
+    print(DEVICE)
     lr = args.lr
     best_loss = 100.0
+    set_seed(SEED)
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{DATASET}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{lr}_{LEN_POSE}'
+    # RESULTS_DIR_POSES = f'{RESULTS_DIR_TRAIN}/Poses'
+    # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR_TRAIN}/Gradients_log.txt'
+
+    RESULTS = f'Results/{DATASET}/{BATCH_SIZE}_{ITERS_PER_EPOCH}_{EVAL_BATCHES}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{IMAGE_SIZE}_{CROP}_{lr}_{SEED}'
+    os.makedirs(RESULTS, exist_ok=True)
+    RESULTS_DIR = f'{RESULTS}/MASK/{P_LOSS_FG}_{THR_IMAGE_OBJECT}_{K_KERNEL}'
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'
-    # RESULTS_DIR_POSES = f'{RESULTS_DIR_TRAIN}/Poses'
-    # RESULTS_DIR_GRADIENTS = f'{RESULTS_DIR_TRAIN}/Gradients_log.txt'
-    RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Capsule'
-    RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Layer'
-    RESULTS_DIR_GENERATIVE = f'{RESULTS_DIR_TRAIN}/Generative_Plot'
-    print(f"Using device: {DEVICE}")
-
-
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
-    os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
-    # os.makedirs(RESULTS_DIR_POSES, exist_ok=True) # save poses for each epoch
-    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_CAPSULES, exist_ok=True) # save gradient flow by capsule for each epoch
-    os.makedirs(RESULTS_DIR_GRADIENTS_MEAN_LAYERS, exist_ok=True) # save gradient flow by layer for each epoch
-    os.makedirs(RESULTS_DIR_GENERATIVE, exist_ok=True)
-
+    #RESULTS_DIR_GRADIENTS_MEAN_CAPSULES = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Capsule'
+    #RESULTS_DIR_GRADIENTS_MEAN_LAYERS = f'{RESULTS_DIR_TRAIN}/Mean_Gradients_by_Layer'
+    #RESULTS_DIR_GENERATIVE = f'{RESULTS_DIR_TRAIN}/Generative_Plot'
 
     trainset = SmallNORBPairDataset(
         PATH_DATASET_NORB,
         split='train',
-        image_size=32,
-        pair_mode='azimuth', # escolher entre azimuth ou elevation PENSO QUE VAMOS TER DE ALTERAR PARA ESTE PARAMETRO POIS ASSIM APENAS ESTAMOS A ANALISAR O AZIMUTH OU ELAVATION E TAMBEM QUERO A ILUMINAÇÃO
-        max_delta=1          # pares com diferença de 1 step = 20° de azimute
+        image_size=IMAGE_SIZE,
+        crop_size=CROP
     )
-    # print("train_dataset: ", len(trainset)) # train_dataset:  22950
     
-    # test_dataset  = SmallNORBPairDataset(PATH_DATASET_NORB, split='test',  image_size=32)
+    testset  = SmallNORBPairDataset(
+        PATH_DATASET_NORB, 
+        split='test',  
+        image_size=IMAGE_SIZE,
+        crop_size=CROP
+    )
 
-    trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    # print(len(trainset)) # train_dataset: 47239200
+    
+    train_sampler = RandomSampler(trainset, replacement=True, num_samples=ITERS_PER_EPOCH * BATCH_SIZE)
+    trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, sampler=train_sampler, num_workers=4, pin_memory=True, persistent_workers=True)
+    print(len(trainloader)) # trainloader: 10000
 
-    sample = trainloader.dataset[0]  # (C, H, W)
+    # trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    def make_test_loader():
+
+        g = torch.Generator().manual_seed(SEED)
+
+        sampler = RandomSampler(testset, replacement=True,
+                                num_samples=EVAL_BATCHES * BATCH_SIZE, generator=g)
+
+        return DataLoader(testset, batch_size=BATCH_SIZE, sampler=sampler,
+                          num_workers=4, pin_memory=True)
+
+    # sample, _, _, _, _, _ = trainloader.dataset[0]  # (C, H, W)
+    sample, _, _= trainloader.dataset[0]  # (C, H, W)
     # print(sample.shape)  # (1, 32, 32)
     IN_DIM = sample.numel()  # total number of pixels (C*H*W)
     IMG_C, IMG_H, IMG_W = sample.shape
+
     
     capL = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_GEN, LEN_POSE)
     capL = capL.to(DEVICE)
-    
-
-    crit = nn.BCEWithLogitsLoss() 
+    # capL = CapLayer(NUM_CAPS, IN_DIM, CAP_REC, CAP_GEN, LEN_POSE).to(DEVICE)
+    # capL.load_state_dict(torch.load(f'{RESULTS_DIR}/best_model.pth', map_location=DEVICE))
+    # crit = nn.MSELoss() # nn.BCEWithLogitsLoss() # 
     optimizer = optim.Adam(capL.parameters(), lr)  
 
     # To check the model architecture 
-    # dxy_fake = torch.zeros((BATCH_SIZE, 2)).to(DEVICE) 
-    # img_fake = torch.zeros((BATCH_SIZE, 1, 28, 28)).to(DEVICE)
-    # summary(capL, input_data=[img_fake, dxy_fake])
-    # poses = []
-    loss_history = [] # save the loss for each iteration to plot later
+    fake_transformation = torch.zeros((BATCH_SIZE, LEN_POSE)).to(DEVICE) 
+    fake_img = torch.zeros((BATCH_SIZE, IMG_C, IMG_H, IMG_W)).to(DEVICE)
+    model_stats = summary(capL, input_data=[fake_img, fake_transformation], verbose=0)
+    save_summary_to_file(model_stats, RESULTS_DIR)
 
-    # Initialize dictionaries to store gradient flow data for plotting
-    grad_flow_caps = {} 
-    grad_flow_layers = {
-    'inp_rec': [],
-    'rec_xy': [],
-    'rec_prob': [],
-    'xy_gen': [],
-    'gen_out': []
-}
-
-    # dxy = torch.zeros(size=(BATCH_SIZE, LEN_POSE), device=DEVICE, dtype=torch.float32) 
-    len_batch_size = len(trainloader) - 2 # To save last Input, Output, Target images of each epoch
+    best_test_loss = float('inf') 
+    stop = 0 
+    n_batches = len(trainloader) # To save last Input, Output, Target images of each epoch
+    # os.makedirs(RESULTS_DIR, exist_ok=True)
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
-        # for i, (image_A, image_B, T, params) in enumerate(trainloader):
-        for i, image_A in enumerate(trainloader):
-            
 
+        running_loss = torch.zeros((), device=DEVICE)
+        running_mse_original = torch.zeros((), device=DEVICE)
+        running_fg   = torch.zeros((), device=DEVICE)
+        running_bg   = torch.zeros((), device=DEVICE)
+        capL.train()
+
+        # for i, (image_A, image_B, T, params) in enumerate(trainloader):
+        # for i, (img_l_i, img_l_t, img_r_i, img_r_t, tansf_l, transf_r) in enumerate(trainloader):
+        for i, (x, target, tansf) in enumerate(trainloader):
+
+            x = x.to(DEVICE, non_blocking=True)
+            target = target.to(DEVICE, non_blocking=True)
+            tansf = tansf.to(DEVICE, non_blocking=True)
             optimizer.zero_grad()
 
-            image_A = image_A.to(DEVICE)
-            # print(image_A.size())
-            # image_B = image_B.to(DEVICE)
-            R = torch.zeros(image_A.size(0), LEN_POSE, device=DEVICE, dtype=torch.float32)
-            # R[:, :6] = T.view(T.size(0), 6)
+            #x      = torch.cat([img_l_i, img_r_i], dim=0)           # (2B, 1, H, W)
+            #target = torch.cat([img_l_t, img_r_t], dim=0)
+            #transf = torch.cat([tansf_l, transf_r], dim=0)          # (2B, 3)
 
-            output = capL(image_A, R)             
-            output = output.view(-1, IMG_C, IMG_H, IMG_W) # (B, 1, 32, 32)
+            out = capL(x, tansf).view(-1, IMG_C, IMG_H, IMG_W)
+            train_loss, train_mse_fg, train_mse_bg = loss_fn(out, target, x, P_LOSS_FG, THR_IMAGE_OBJECT, K_KERNEL)
+            with torch.no_grad():
+                mse_original = ((out - target) ** 2).mean()
+            
+            # loss = crit(out, target)
+            
+            # if i % 20 == 0:
+            #     with torch.no_grad():
+            #         m = make_mask(x, target, THR_IMAGE_OBJECT, K_KERNEL)
+            #     print(f"it {i} | loss {train_loss.item():.4f} | out [{out.min().item():.2f}, {out.max().item():.2f}] "
+            #         f"| fração objeto {m.mean().item():.3f}")
 
-            loss = crit(output, image_A)
-            # Valores entre 0 e 1 — reflete melhor a perceção humana
-            # > 0.8 é considerado bom
-
-
-            if i == len_batch_size:
-                Save_In_Out_Target_Images(image_A, False, output, epoch, i,
-                                        RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
-
-            loss.backward()
+            train_loss.backward()
             optimizer.step()
-            current_loss = loss.item()
 
-            loss_history.append(current_loss)
+            running_loss += train_loss.detach()
+            running_fg += train_mse_fg.detach()
+            running_bg += train_mse_bg.detach()
+            running_mse_original += mse_original
 
-            #if current_loss < best_loss:
-            best_loss = current_loss
-            best_state = {k: v.clone() for k, v in capL.state_dict().items()}
-            torch.save(best_state, f'{RESULTS_DIR}/best_model.pth')
+            if i == n_batches - 2:
+                Save_In_Out_Target_Images(x, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
+
+            if i % 100 == 0:
+                elapsed = time.time() - start_time
+                batches_per_sec = (i + 1) / elapsed
+                eta = (n_batches - i - 1) / batches_per_sec
+                print(f"\rEpoch {epoch+1}/{NUM_EPOCHS} | Batch {i}/{n_batches} "
+                    f"| {batches_per_sec:.2f} batch/s | ETA época: {eta:.1f}s",
+                    end="", flush=True)
 
             # grad_flow_caps   = Save_Mean_Gradients_by_capsule(capL, grad_flow_caps)
             # grad_flow_layers = Save_Mean_Gradients_by_layer(capL, grad_flow_layers)
 
         # PlotGenrative(epoch, capL, IMG_C, IMG_H, IMG_W, RESULTS_DIR_GENERATIVE, num_capsule= NUM_CAPS, num_generative=CAP_GEN)
-        
+        train_loss = (running_loss / n_batches).item()
+        train_mse_fg = (running_fg / n_batches).item()
+        train_mse_bg = (running_bg / n_batches).item()
+        train_mse_original = (running_mse_original / n_batches).item()
+
+        test_mse, test_mse_fg, test_mse_bg, test_mse_original = evaluate(capL, make_test_loader(), DEVICE, (IMG_C, IMG_H, IMG_W), P_LOSS_FG, THR_IMAGE_OBJECT, K_KERNEL)
+
+        # ---------- checkpoint + early stopping (sobre a loss de teste) ----------
+        if test_mse_original < best_test_loss:
+            best_test_loss = test_mse_original
+            torch.save(capL.state_dict(), f'{RESULTS_DIR}/best_model.pth')
+            stop = 0
+        else:
+            stop += 1
+
         diff_time = time.time() - start_time
-        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {(diff_time):.2f} seconds; Loss: {current_loss:.4f}") 
-        Loss_Txt(epoch, NUM_EPOCHS, diff_time, current_loss, RESULTS_DIR_LOSS)
+        print(f"\nEpoch [{epoch+1}/{NUM_EPOCHS}]; Time: {diff_time:.2f}s; "
+              f"Train loss: {train_loss:.5f}; Train mse_fg: {train_mse_fg:.5f}; Train mse_bg: {train_mse_bg:.5f}; Train mse_original: {train_mse_original:.5f}; "
+              f"Test loss: {test_mse:.5f}; Test mse_fg: {test_mse_fg:.5f}; Test mse_bg: {test_mse_bg:.5f}; Test mse_original: {test_mse_original:.5f}; "
+              f"Best: {best_test_loss:.5f}; Patience: {stop}/{PATIENCE}")
+        Loss_Txt_Small_Norb(epoch, NUM_EPOCHS, diff_time, train_loss, train_mse_fg, train_mse_bg, train_mse_original, test_mse, test_mse_fg, test_mse_bg, test_mse_original, RESULTS_DIR_LOSS)
+
+        if stop >= PATIENCE:
+            print(f"Early stopping na epoch {epoch+1}: sem melhoria na loss de teste "
+                  f"durante {PATIENCE} epochs consecutivas.")
+            break
         
-        # Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS)
 
         # Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES)
         # Plot_Gradient_Flow_by_layer(grad_flow_layers, epoch, RESULTS_DIR_GRADIENTS_MEAN_LAYERS)

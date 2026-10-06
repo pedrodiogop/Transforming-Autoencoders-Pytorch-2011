@@ -107,11 +107,11 @@ class SmallNORBPairDataset(Dataset):
         info_categoria = info_categoria.astype(np.float32)
 
         # normalização da elevação e do azimute
-        info_categoria[:, 2] = ((info_categoria[:, 2] + 30 + info_categoria[:, 2] * 4) - 50) / 25
-        info_categoria[:, 3] = ((info_categoria[:, 3] * 10) - 160) / 200
+        # info_categoria[:, 2] = ((info_categoria[:, 2] + 30 + info_categoria[:, 2] * 4) - 50) / 25
+        # info_categoria[:, 3] = ((info_categoria[:, 3] * 10) - 160) / 200
 
         # remove a última coluna (ilum) -> [instancia, categoria, ele, azim]
-        info_categoria = np.delete(info_categoria, -1, axis=1)
+        # info_categoria = np.delete(info_categoria, -1, axis=1)
 
         # # adiciona o índice global de cada imagem -> [instancia, categoria, ele, azim, idx]
         # idx = np.arange(info_categoria.shape[0])
@@ -124,9 +124,9 @@ class SmallNORBPairDataset(Dataset):
         pixel_images_l = l_images[:, 0, 0] / 255.0
         # pixel_images_r = r_images[:, 0, 0] / 255.0
 
-        # insere o pixel na coluna 4
-        info_categoria_l = np.insert(info_categoria_l, 4, pixel_images_l, axis=1)
-        # info_categoria_r = np.insert(info_categoria_r, 4, pixel_images_r, axis=1)
+        # insere o pixel na coluna 5
+        info_categoria_l = np.insert(info_categoria_l, 5, pixel_images_l, axis=1)
+        # info_categoria_r = np.insert(info_categoria_r, 5, pixel_images_r, axis=1)
 
         # colunas de info_categoria_l: [ins, categ, ele, azim, pixel, idx]
 
@@ -180,9 +180,10 @@ class SmallNORBPairDataset(Dataset):
             i = self.group_idx[g, a]
             t = self.group_idx[g, b]
 
-            transf_l = self.attrs_l[t] - self.attrs_l[i]
+            # transf_l = self.attrs_l[t] - self.attrs_l[i]
             # transf_r = self.attrs_r[t] - self.attrs_r[i]
-            return (self.base_transform(self.l_images[i]), self.base_transform(self.l_images[t]), transf_l)
+            categoria = [i, t, self.attrs_l[i], self.attrs_l[t]]
+            return (self.base_transform(self.l_images[i]), self.base_transform(self.l_images[t]), categoria)
             # return (self.base_transform(self.l_images[i]), self.base_transform(self.l_images[t]), self.base_transform(self.r_images[i]), self.base_transform(self.r_images[t]), transf_l, transf_r)
 
     # Codigo antes de Claude
