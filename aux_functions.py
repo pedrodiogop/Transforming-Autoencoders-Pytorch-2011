@@ -380,8 +380,7 @@ def Loss_Txt(epoch, NUM_EPOCHS, time, current_loss, RESULTS_DIR_LOSS):
         f.write(text)
         
 
-def Loss_Txt_Small_Norb(epoch, NUM_EPOCHS, time, train_loss, train_mse_fg, train_mse_bg, train_mse_original, test_loss, test_mse_fg, test_mse_bg, test_mse_original, RESULTS_DIR_LOSS): 
+def Loss_Txt_Small_Norb(text, RESULTS_DIR_LOSS): 
     os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
-    text = f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {time:.2f} seconds; Train Loss: {train_loss:.4f}; Train mse_fg: {train_mse_fg:.4f}; Train mse_bg: {train_mse_bg:.4f}; Train mse_original: {train_mse_original:.4f}; Test Loss: {test_loss:.4f}; Test mse_fg: {test_mse_fg:.4f}; Test mse_bg: {test_mse_bg:.4f}; Test mse_original: {test_mse_original:.4f}\n"
     with open(f'{RESULTS_DIR_LOSS}/Log_Treino.txt', "a", encoding="utf-8") as f:
         f.write(text)

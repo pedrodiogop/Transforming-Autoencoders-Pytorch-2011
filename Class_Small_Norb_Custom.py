@@ -21,7 +21,7 @@ class SmallNORBPairDataset_Custom(Dataset):
         }
     }
 
-    def __init__(self, dataset_root, split, image_size, crop_size):
+    def __init__(self, dataset_root, split, image_size, crop_size, elev_idx=None, azim_idx=None, light_idx=None):
 
         assert split    in ('train', 'test')
 
@@ -110,12 +110,12 @@ class SmallNORBPairDataset_Custom(Dataset):
         self.l_images   = self.l_images[mask]
         self.categories = self.categories[mask]
         self.info       = info[mask]
-        
-        print(self.info.shape)                 # esperado: (24300, 4)
-        print(np.unique(self.info[:, 1]))      # elevação: 0..8
-        print(np.unique(self.info[:, 2]))      # azimute: 0,2,...,34
-        print(np.unique(self.info[:, 3]))      # iluminação: 0..5
-        print(mask.sum(), self.l_images.shape) # esperado: 675, (675, 96, 96)
+
+        # print(self.info.shape)                 # esperado: (675, 4)
+        # print(np.unique(self.info[:, 1]))      # elevação: 0..8
+        # print(np.unique(self.info[:, 2]))      # azimute: 0,2,...,34
+        # print(np.unique(self.info[:, 3]))      # iluminação: 0..5
+        # print(mask.sum(), self.l_images.shape) # esperado: 675, (675, 96, 96)
 
     def _pre_processemnt_join_img_labels(self):
         categorias = self.categories
@@ -127,29 +127,25 @@ class SmallNORBPairDataset_Custom(Dataset):
         info_categoria = np.insert(info, 1, categorias, axis=1)
         info_categoria = info_categoria.astype(np.float32)
 
+        ilum_map = {2: -0.5, 4: 0.0, 5: 0.5}
+        ilum_raw = info_categoria[:, 4]
+
+        ilum_new = np.full_like(ilum_raw, np.nan)       # NaN = "não mapeado"
+        for k, v in ilum_map.items():
+            ilum_new[ilum_raw == k] = v
+
+        assert not np.isnan(ilum_new).any(), "Existem índices de iluminação fora de {2, 4, 5}"
+        info_categoria[:, 4] = ilum_new
+
         # normalização da elevação e do azimute
         info_categoria[:, 2] = ((info_categoria[:, 2] + 30 + info_categoria[:, 2] * 4) - 50) / 25
         info_categoria[:, 3] = ((info_categoria[:, 3] * 10) - 160) / 200
-
-        # remove a última coluna (ilum) -> [instancia, categoria, ele, azim]
-        info_categoria = np.delete(info_categoria, -1, axis=1)
-
-        # # adiciona o índice global de cada imagem -> [instancia, categoria, ele, azim, idx]
-        # idx = np.arange(info_categoria.shape[0])
-        # info_categoria = np.column_stack((info_categoria, idx))
-
+        
+        
         info_categoria_l = info_categoria.copy()
-        # info_categoria_r = info_categoria.copy()
 
-        # valor do primeiro pixel de cada imagem, normalizado
-        pixel_images_l = l_images[:, 0, 0] / 255.0
-        # pixel_images_r = r_images[:, 0, 0] / 255.0
-
-        # insere o pixel na coluna 4
-        info_categoria_l = np.insert(info_categoria_l, 4, pixel_images_l, axis=1)
-        # info_categoria_r = np.insert(info_categoria_r, 4, pixel_images_r, axis=1)
-
-        # colunas de info_categoria_l: [ins, categ, ele, azim, pixel]
+        
+        # colunas de info_categoria_l: [ins, categ, ele, azim, ilum]
 
         # ---------- agrupamento por (categoria, instância) ----------
         ins   = info_categoria_l[:, 0]        # (24300,) instância de cada imagem
