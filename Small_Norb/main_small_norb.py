@@ -3,8 +3,7 @@ from torchinfo import summary
 import torch
 from torch.utils.data import DataLoader, RandomSampler
 import matplotlib.pyplot as plt
-from aux_functions import Get_Args_SmallNorb, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt_Small_Norb, set_seed, save_summary_to_file
-from aux_gradients import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
+from aux_functions import Get_Args_SmallNorb, Loss_Txt_Small_Norb, set_seed, save_summary_to_file, Save_In_Out_Target_Images
 from CapLayer import CapLayer
 import torch.optim as optim
 import torch.nn as nn
@@ -14,50 +13,8 @@ import torchvision
 from Class_Small_Norb_Custom import SmallNORBPairDataset_Custom
 import torch.nn.functional as F
 
-# def fg_mask(img, thr):
-#     #bg = img[:, :, :1, :1] 
-#     bg = img.flatten(1).median(dim=1).values.view(-1, 1, 1, 1) # (B, 1, 1, 1) -> median along H*W
-#     return ((img - bg).abs() > thr).float()
 
-# def make_mask(x, target, thr, k):
-#     with torch.no_grad():
-#         #m = torch.maximum(fg_mask(x, thr), fg_mask(target, thr))
-#         # stride 1 e padding k//2 para manter o tamanho da máscara igual ao da imagem
-#         m = fg_mask(target, thr)
-#         m = F.max_pool2d(m, k, stride=1, padding=k // 2) # o k controla a dilatação da máscara, para cobrir melhor o objeto. Tem de ser impar para a a mascara ter o mesmo tamanho da imagem.
-#     return m
-
-# def mse_fg_bg(out, target, m, eps=1e-8):
-#     se = (out - target) ** 2
-#     mse_fg = (se * m).sum() / (m.sum() + eps)
-#     mse_bg = (se * (1 - m)).sum() / ((1 - m).sum() + eps)
-#     return mse_fg, mse_bg
-
-# def loss_fn(out, target, x, w_fg, thr, k):
-#     m = make_mask(x, target, thr, k) # (n, 1, H, W), valores 0/1
-#     mse_fg, mse_bg = mse_fg_bg(out, target, m)
-#     loss = w_fg * mse_fg + (1 - w_fg) * mse_bg
-#     return loss, mse_fg, mse_bg
-
-def Save_In_Out_Target_Images(inp, target, out, epoch, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
-    os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
-    
-    inp = inp.detach().cpu()
-    out = out.clamp(0, 1).detach().cpu() # out = torch.sigmoid(out).detach().cpu()  # 
-    target = target.detach().cpu()
-    batch = torch.cat([inp, target, out], dim=3)
-    
-         
-    im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=False, padding=2, pad_value=0.5)
-    # To have the real values we need to set normalize=False. 
-    # This way the reconstrution image is not manipulated from the original
-    # im_tensor = torchvision.utils.make_grid(batch, nrow=8, normalize=True, padding=2, pad_value=0.5) 
-    img = np.transpose(im_tensor.numpy(), (1, 2, 0))
-    # img = np.clip(img, 0, 1) 
-    
-    caminho = os.path.join(RESULTS_DIR_IN_OUT_TARGET_IMAGES, f'Epoch_{epoch:03d}.png')
-    plt.imsave(caminho, img)
-
+# adicionar Plot_loss que guarda a loss a cada epoca
 
 @torch.no_grad()
 def evaluate(model, loader, device, img_shape, crit, RESULTS_DIR_IN_OUT_TARGET_IMAGES_VALIDATION):

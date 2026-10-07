@@ -5,6 +5,28 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+# Code in poses.py
+# def Plot_Poses(poses, RESULTS_DIR_POSES, epoch):
+#     poses = poses.detach().cpu().numpy()
+
+#     x = poses[:, 0]
+#     y = poses[:, 1]
+
+#     fig, ax = plt.subplots(figsize=(6, 6))
+#     ax.scatter(x, y, alpha=0.6, edgecolors='w', label='Poses Médias (R)')
+
+#     ax.axhline(0, color='black', lw=1, ls='--') 
+#     ax.axvline(0, color='black', lw=1, ls='--') 
+
+#     ax.set_title("Distribuição das Poses Médias no Batch")
+#     ax.set_xlabel("Coordenada X")
+#     ax.set_ylabel("Coordenada Y")
+#     ax.grid(True, alpha=0.3)
+#     ax.legend()
+#     plt.savefig(f'{RESULTS_DIR_POSES}/Poses_Ep_{epoch+1:03d}.png', dpi=150, bbox_inches='tight')
+#     plt.close(fig)
+
 def BatchShift_torch(imbatch: torch.Tensor, dx, padding_mode_sift, device, pose_dim):
 
     B, _, H, W = imbatch.shape
