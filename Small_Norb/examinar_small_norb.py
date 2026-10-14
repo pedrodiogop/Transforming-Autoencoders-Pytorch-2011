@@ -1,4 +1,4 @@
-from Class_Norb_teste import SmallNORBPairDataset
+from Class_Norb_Examinar import SmallNORBPairDataset
 import torchvision
 import os
 import numpy as np

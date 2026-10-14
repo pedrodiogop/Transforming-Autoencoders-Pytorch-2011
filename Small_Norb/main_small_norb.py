@@ -3,7 +3,7 @@ from torchinfo import summary
 import torch
 from torch.utils.data import DataLoader, RandomSampler
 import matplotlib.pyplot as plt
-from aux_functions import Get_Args_SmallNorb, Loss_Txt_Small_Norb, set_seed, save_summary_to_file, Save_In_Out_Target_Images
+from aux_functions import Get_Args_SmallNorb, Loss_Txt_Small_Norb, set_seed, save_summary_to_file, Save_In_Out_Target_Images, evaluate, Plot_Loss
 from CapLayer import CapLayer
 import torch.optim as optim
 import torch.nn as nn
@@ -15,24 +15,6 @@ import torch.nn.functional as F
 
 
 # adicionar Plot_loss que guarda a loss a cada epoca
-
-@torch.no_grad()
-def evaluate(model, loader, device, img_shape, crit, RESULTS_DIR_IN_OUT_TARGET_IMAGES_VALIDATION):
-    """Loss média no conjunto de teste (sem gradientes)."""
-    model.eval()
-    running_validation_loss = torch.zeros((), device=DEVICE)
-    n_batches = len(loader)
-    for i, (x, target, transf) in enumerate(loader):
-        x = x.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
-        transf = transf.to(device, non_blocking=True)
-
-        out = model(x, transf).view(-1, *img_shape)
-        running_validation_loss += crit(out, target)
-        if i == n_batches - 2: 
-            Save_In_Out_Target_Images(x, target, out, epoch, RESULTS_DIR_IN_OUT_TARGET_IMAGES_VALIDATION, DATASET)
-    model.train()
-    return (running_validation_loss / n_batches).item()
 
 if __name__ == '__main__':
     args = Get_Args_SmallNorb()
@@ -104,7 +86,7 @@ if __name__ == '__main__':
     
     # train_sampler = RandomSampler(trainset, replacement=True, num_samples=ITERS_PER_EPOCH * BATCH_SIZE)
     trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=5, pin_memory=True, persistent_workers=True)
-    print(len(trainloader)) # trainloader: 10000 || 225
+    print(f'Training batches: {len(trainloader)}') # trainloader: 10000 || 225
 
     # trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
     def make_test_loader():
@@ -141,10 +123,13 @@ if __name__ == '__main__':
     stop = 0 
     n_batches = len(trainloader) # To save last Input, Output, Target images of each epoch
     # os.makedirs(RESULTS_DIR, exist_ok=True)
+    loss_history = []
+    val_history = []
     for epoch in range(NUM_EPOCHS):
         start_time = time.time()
         running_loss = torch.zeros((), device=DEVICE)
         capL.train()
+        n_samples = 0
         for i, (x, target, tansf) in enumerate(trainloader):
             x = x.to(DEVICE, non_blocking=True)
             target = target.to(DEVICE, non_blocking=True)
@@ -154,9 +139,11 @@ if __name__ == '__main__':
             loss = crit(out, target)
             loss.backward()
             optimizer.step()
-            running_loss += loss.detach()
+            bs = x.size(0)
+            running_loss += loss.detach() * bs  # multiply by batch size to get total loss for the batch
+            n_samples += bs
             if i == n_batches - 2:
-                Save_In_Out_Target_Images(x, target, out, epoch, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
+                Save_In_Out_Target_Images(x, target, out, epoch, RESULTS_DIR_IN_OUT_TARGET_IMAGES)
             if i % 100 == 0:
                 elapsed = time.time() - start_time
                 batches_per_sec = (i + 1) / elapsed
@@ -164,8 +151,10 @@ if __name__ == '__main__':
                 print(f"\rEpoch {epoch+1}/{NUM_EPOCHS} | Batch {i}/{n_batches} "
                     f"| {batches_per_sec:.2f} batch/s | ETA época: {eta:.1f}s",
                     end="", flush=True)
-        train_loss = (running_loss / n_batches).item()
-        validation_loss = evaluate(capL, make_test_loader(), DEVICE, (IMG_C, IMG_H, IMG_W), crit, RESULTS_DIR_IN_OUT_TARGET_IMAGES_VALIDATION)
+        train_loss = (running_loss / n_samples).item()
+        loss_history.append(train_loss)
+        validation_loss = evaluate(capL, make_test_loader(), DEVICE, (IMG_C, IMG_H, IMG_W), crit, epoch, RESULTS_DIR_IN_OUT_TARGET_IMAGES_VALIDATION)
+        val_history.append(validation_loss)
 
         # ---------- checkpoint + early stopping (sobre a loss de teste) ----------
         if validation_loss < best_test_validation_loss:
@@ -180,11 +169,14 @@ if __name__ == '__main__':
         
         print(text)
         Loss_Txt_Small_Norb(text, RESULTS_DIR_LOSS)
-
+    
         if stop >= PATIENCE:
             print(f"Early stopping na epoch {epoch+1}: sem melhoria na loss de teste "
                   f"durante {PATIENCE} epochs consecutivas.")
+            Plot_Loss(loss_history, RESULTS_DIR_LOSS, val_history)
             break
+    Plot_Loss(loss_history, RESULTS_DIR_LOSS, val_history)
+    
         
 
         # Plot_Gradient_Flow_by_capsule(grad_flow_caps, epoch, RESULTS_DIR_GRADIENTS_MEAN_CAPSULES)

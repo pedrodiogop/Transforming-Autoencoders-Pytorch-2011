@@ -120,8 +120,6 @@ class SmallNORBPairDataset_Custom(Dataset):
     def _pre_processemnt_join_img_labels(self):
         categorias = self.categories
         info = self.info
-        l_images = self.l_images
-        # r_images = self.r_images
 
         # info_categoria: [instancia, categoria, ele, azim, ilum]
         info_categoria = np.insert(info, 1, categorias, axis=1)

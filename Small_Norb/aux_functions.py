@@ -1,6 +1,5 @@
 import argparse
 import random
-# from dateutil import parser
 from matplotlib import lines
 import numpy as np
 import os
@@ -32,6 +31,27 @@ def Get_Args_SmallNorb():
 
     return parser.parse_args()
 
+@torch.no_grad()
+def evaluate(model, loader, device, img_shape, crit, epoch, results_dir_in_out_target_images_validation):
+    """Loss média no conjunto de teste (sem gradientes)."""
+    model.eval()
+    running_validation_loss = torch.zeros((), device=device)
+    n_batches = len(loader)
+    n_samples = 0
+    for i, (x, target, transf) in enumerate(loader):
+        x = x.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)
+        transf = transf.to(device, non_blocking=True)
+
+        out = model(x, transf).view(-1, *img_shape)
+        bs = x.size(0)
+        running_validation_loss += crit(out, target) * bs
+        n_samples += bs
+        if i == n_batches - 2: 
+            Save_In_Out_Target_Images(x, target, out, epoch, results_dir_in_out_target_images_validation)
+    model.train()
+    return (running_validation_loss / n_samples).item()
+
 def save_summary_to_file(model_stats, RESULTS_DIR):
     summary_str = str(model_stats)
 
@@ -50,8 +70,8 @@ def set_seed(seed):
     if torch.backends.mps.is_available():
         torch.mps.manual_seed(seed)
 
-def Save_In_Out_Target_Images(inp, target, out, epoch, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET):
-    os.makedirs(RESULTS_DIR_IN_OUT_TARGET_IMAGES, exist_ok=True) # save input, output and target images for each epoch
+def Save_In_Out_Target_Images(inp, target, out, epoch, results_dir_in_out_target_images):
+    os.makedirs(results_dir_in_out_target_images, exist_ok=True) # save input, output and target images for each epoch
     
     inp = inp.detach().cpu()
     out = out.clamp(0, 1).detach().cpu() # out = torch.sigmoid(out).detach().cpu()  # 
@@ -66,22 +86,23 @@ def Save_In_Out_Target_Images(inp, target, out, epoch, RESULTS_DIR_IN_OUT_TARGET
     img = np.transpose(im_tensor.numpy(), (1, 2, 0))
     # img = np.clip(img, 0, 1) 
     
-    caminho = os.path.join(RESULTS_DIR_IN_OUT_TARGET_IMAGES, f'Epoch_{epoch:03d}.png')
+    caminho = os.path.join(results_dir_in_out_target_images, f'Epoch_{epoch:03d}.png')
     plt.imsave(caminho, img)      
 
-def Plot_Loss(epoch, loss_history, RESULTS_DIR_LOSS):
-        
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(loss_history, label='Loss', linewidth=0.8)
-            
-    ax.set_xlabel('Iteração')
-    ax.set_ylabel('Loss')
-    ax.set_title(f'Função de Custo — Época {epoch+1}')
+def Plot_Loss(loss_history, RESULTS_DIR_LOSS, val_history):
+    epochs = range(1, len(loss_history) + 1)
 
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(epochs, loss_history, label='Treino', marker='o', markersize=3, linewidth=1.0)
+    ax.plot(epochs, val_history, label='Validação', marker='s', markersize=3, linewidth=1.0)
+
+    ax.set_xlabel('Época')
+    ax.set_ylabel('MSE (média por píxel)')
+    ax.set_title('Função de custo por época')
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    plt.savefig(f'{RESULTS_DIR_LOSS}/Loss_Ep_{epoch+1:03d}.png', dpi=150, bbox_inches='tight')
+    fig.savefig(f'{RESULTS_DIR_LOSS}/Loss_Curve.png', dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 def Loss_Txt_Small_Norb(text, RESULTS_DIR_LOSS): 
