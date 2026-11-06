@@ -12,22 +12,18 @@ class Capsule(nn.Module):
         self.cap_pose = len_pose
         # 28*28 -> 40 recognition units 
         self.inp_rec = nn.Linear(self.inpdim, self.cap_rec)
-
         # 40 -> 2; the pose of the feature in the image (x,y)
         self.rec_pose = nn.Linear(self.cap_rec, self.cap_pose)
-
         # 40 -> 1; probability of the feature being present in the image
         self.rec_prob = nn.Linear(self.cap_rec, 1)
-
         # 2 -> 40 generation units
         self.pose_gen = nn.Linear(self.cap_pose, self.cap_gen)
-
         # 40 -> 28*28 reconstruction of the image
         self.gen_out = nn.Linear(self.cap_gen, self.inpdim)
         # Shape(784, 40) 
         # 784 each row is the contribution of all 40 units to one output pixel
         # 40 columns, each column represents the weights of one generative unit.
-
+    
     # inp/X -> batch of images
     # dxy/delxy -> batch of transformations
     def forward(self, X, transformation, sp = False): 
@@ -35,11 +31,11 @@ class Capsule(nn.Module):
         X = X.flatten(start_dim=1)
         # print(X.size()) 
         # torch.Size([64, 784])
-
         # print(delxy.size()) 
         # torch.Size([64, 2])
 
-        cap = F.leaky_relu(self.inp_rec(X), negative_slope=0.01) 
+        cap = F.leaky_relu(self.inp_rec(X), negative_slope=0.01)
+        # cap = F.relu(self.inp_rec(X)) 
         # print('cap', cap.size()) 
         # cap torch.Size([64, 40])
 
@@ -50,6 +46,33 @@ class Capsule(nn.Module):
         prb = torch.sigmoid(self.rec_prob(cap))
         # print('prb', prb.size()) 
         # prb torch.Size([64, 1])
+        dx = pose[:, 0] + transformation[:, 0] # translaçao X
+        dy = pose[:, 1] + transformation[:, 1] # translação Y 
+        rotation = pose[:, 2] + transformation[:, 2] # Rotacao
+        # sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
+        #scale = pose[:, 3] + transformation[:, 3] # scale
+        scale_x = pose[:, 3] + transformation[:, 3] # scale x
+        scale_y = pose[:, 4] + transformation[:, 4] # scale y
+        shear_x = pose[:, 5] + transformation[:, 5] # shear x
+        shear_y = pose[:, 6] + transformation[:, 6] # shear y
+
+        transformer_pose = torch.stack([dx, dy, rotation, scale_x, scale_y, shear_x, shear_y], dim=1)
+
+        # print('x_y + del', (x_y + delxy).size()) 
+        # x_y + del torch.Size([64, 2])   
+        gen = F.leaky_relu(self.pose_gen(transformer_pose), negative_slope=0.01)
+        #gen = F.relu(self.pose_gen(transformer_pose))
+
+        # print('gen', gen.size()) 
+        # gen torch.Size([64, 40])
+
+        # rec = self.gen_out(gen)
+        rec = F.leaky_relu(self.gen_out(gen), negative_slope=20)
+        # print('rec',rec.size()) 
+        # rec torch.Size([64, 784])
+
+        output = rec * prb # torch.mul(rec, prb)
+        return (output, normalize_pose, prb) if sp else output
 
         ##### Codigo oficial ######
         # # Normalizar a pose para respeitar a regra: cos2+sin2​=1 
@@ -67,37 +90,3 @@ class Capsule(nn.Module):
         # scale = pose_scale + transformation[:, 4] 
         # shear_x = pose_shear_x + transformation[:, 5]
         # shear_y = pose_shear_y + transformation[:, 6]
-
-        ##### Rotação com 1 dimensao ######
-        # Normalizar a pose para respeitar a regra: cos2+sin2​=1 
-        #pose_trans = pose[:, 0:2]
-        #pose_rot = F.normalize(pose[:, 2:4], p=2, dim=1) # porque estamos a nomralizar?
-        # normalize_pose = torch.cat([pose_trans, pose_rot], dim=1)
-        # R[:,0] = dx_norm R[:,1] = dy_norm R[:,2] = cos_theta R[:,3] = sin_theta
-        dx = pose[:, 0] + transformation[:, 0] # translaçao X
-        dy = pose[:, 1] + transformation[:, 1] # translação Y 
-        rotation = pose[:, 2] + transformation[:, 2] # Rotacao
-        # sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
-        #scale = pose[:, 3] + transformation[:, 3] # scale
-        scale_x = pose[:, 3] + transformation[:, 3] # scale x
-        scale_y = pose[:, 4] + transformation[:, 4] # scale y
-        shear_x = pose[:, 5] + transformation[:, 5] # shear x
-        shear_y = pose[:, 6] + transformation[:, 6] # shear y
-
-        
-
-        transformer_pose = torch.stack([dx, dy, rotation, scale_x, scale_y, shear_x, shear_y], dim=1)
-        
-
-        # print('x_y + del', (x_y + delxy).size()) 
-        # x_y + del torch.Size([64, 2])   
-        gen = F.leaky_relu(self.pose_gen(transformer_pose), negative_slope=0.01)
-        # print('gen', gen.size()) 
-        # gen torch.Size([64, 40])
-
-        rec = self.gen_out(gen)
-        # print('rec',rec.size()) 
-        # rec torch.Size([64, 784])
-
-        output = rec * prb # torch.mul(rec, prb)
-        return (output, normalize_pose, prb) if sp else output
