@@ -15,7 +15,7 @@ def Get_Args_SmallNorb():
     parser.add_argument('--batch_size', type=int,   default=256,    help='Batch size for training')
     parser.add_argument('--epochs',     type=int,   default=400,     help='Number of epochs to train')
     parser.add_argument('--iter_per_epoch',     type=int,   default=10000,     help='Number of iterations per epoch')
-    parser.add_argument('--eval_batches',     type=int,   default=1000,     help='Number of batches to evaluate on')
+    parser.add_argument('--eval_batches',     type=int,   default=100,     help='Number of batches to evaluate on')
     parser.add_argument('--num_caps',   type=int,   default=100,    help='Number of capsules')
     parser.add_argument('--cap_rec',    type=int,   default=200,   help='Capsule reconstruction dimension')
     parser.add_argument('--cap_gen',    type=int,   default=200,   help='Capsule generation dimension')
@@ -24,7 +24,7 @@ def Get_Args_SmallNorb():
     parser.add_argument('--len_pose',    type=int,   default=3, help='Capsule pose vector length.')
     parser.add_argument('--seed',    type=int,   default=42, help='Random seed for reproducibility.')
     parser.add_argument('--dataset_path', type=str, default='tmp/data_small_norb', help='Path para os ficheiros .mat do smallNORB')
-    parser.add_argument('--img_size', type=int, default='96', help='If you want to resize the image')
+    parser.add_argument('--img_size', type=int, default='32', help='If you want to resize the image') # 96
     parser.add_argument('--p_loss_fuct_fg', type=float, default='0.85', help='Weight for object loss')
     parser.add_argument('--thr', type=float, default='0.1', help='Threshold for pixel difference to consider as object')
     parser.add_argument('--k_kernel', type=int, default='1', help='Size of the kernel for smoothing the mask')

@@ -39,7 +39,7 @@ if __name__ == '__main__':
     set_seed(SEED)
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_100'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_Linear'
     RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'
@@ -84,7 +84,8 @@ if __name__ == '__main__':
     # on a pixel-by-pixel basis. The objective is for the network to learn how to 
     # apply the dxy displacement to the original image and reconstruct it 
     # correctly in the new position.
-    crit = nn.MSELoss() if 'CIFAR' in DATASET else nn.BCEWithLogitsLoss() 
+    #crit = nn.MSELoss() if 'CIFAR' in DATASET else nn.BCEWithLogitsLoss() 
+    crit = nn.BCEWithLogitsLoss() 
     optimizer = optim.Adam(capL.parameters(), lr)  
     
     # print(capL)
@@ -132,13 +133,13 @@ if __name__ == '__main__':
 
             # inp shape: torch.Size([64, 1, 28, 28])
             inp = inp.to(DEVICE, non_blocking=True)
-            target, dxy = BatchShift_torch_Rotation(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], [SCALE_MIN, SCALE_MAX], [-SHEAR, SHEAR], padding_mode_sift, DEVICE, LEN_POSE)
+            target, dxy, inp_img = BatchShift_torch_Rotation(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], [SCALE_MIN, SCALE_MAX], [-SHEAR, SHEAR], padding_mode_sift, DEVICE, LEN_POSE)
             # target, dxy = BatchShift_torch(inp, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], padding_mode_sift, DEVICE, LEN_POSE)
-            out = capL(inp, dxy)
+            out = capL(inp_img, dxy)
             out = out.view(-1, IMG_C, IMG_H, IMG_W)
             loss = crit(out, target)
             if i == len_batch_size and epoch % 5 == 0: # Save the input, output images for the first
-                Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
+                Save_In_Out_Target_Images(inp_img, target, out, epoch, i, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET)
             loss.backward()
             optimizer.step()
             

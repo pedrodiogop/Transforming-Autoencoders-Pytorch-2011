@@ -38,7 +38,7 @@ if __name__ == '__main__':
     set_seed(SEED)
 
     
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_20'
     RESULTS_DIR_PARTIAL_RECONSTRUCTIONS = f'{RESULTS_DIR}/Partial_Reconstructions'
 
     padding_mode_sift = 'zeros'
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     test_set = dataset_class(root="tmp", train=False, download=True, transform=ToTensor())
     testeloader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
-    image_index = 17 # Index of the image to visualize
+    image_index = 2 # Index of the image to visualize
     # testeloader.dataset[i][j] -> (image,label)
     sample = testeloader.dataset[image_index][0]  # (C, H, W)
     label = testeloader.dataset[image_index][1]
@@ -64,10 +64,10 @@ if __name__ == '__main__':
     with torch.no_grad():
         sample = sample.unsqueeze(0) # Add a batch dimension to the sample
         sample = sample.to(DEVICE)
-        target, transformations = BatchShift_torch_Rotation(sample, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], [SCALE_MIN, SCALE_MAX], [-SHEAR, SHEAR], padding_mode_sift, DEVICE, LEN_POSE)
+        target, transformations, inp_img = BatchShift_torch_Rotation(sample, [-RANDOM_TRANSLATION, RANDOM_TRANSLATION], [-ROTATION_ANGLE, ROTATION_ANGLE], [SCALE_MIN, SCALE_MAX], [-SHEAR, SHEAR], padding_mode_sift, DEVICE, LEN_POSE)
 
         # RANDOM_TRANSFORMATIONS = f'{RANDOM_TRANSLATION}_{ROTATION_ANGLE}'
-        capsule_stacked, reconstruction_image, all_probs, _ = capL_feature_map(sample, transformations)
+        capsule_stacked, reconstruction_image, all_probs, _ = capL_feature_map(inp_img, transformations)
         # print(capsule_stacked.size()) torch.Size([25, 1, 784])
         reconstruction_image = reconstruction_image.view(-1, IMG_C, IMG_H, IMG_W)
 

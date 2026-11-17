@@ -34,14 +34,14 @@ def Get_Args():
     parser = argparse.ArgumentParser(description='Implementation of Transforming-Autoencoders')
     
     parser.add_argument('--device',     type=str,   default='cuda',  help='Device to use for training (e.g., "cpu", "cuda", "mps")')
-    parser.add_argument('--batch_size', type=int,   default=64,    help='Batch size for training')
+    parser.add_argument('--batch_size', type=int,   default=256,    help='Batch size for training')
     parser.add_argument('--epochs',     type=int,   default=400,     help='Number of epochs to train')
-    parser.add_argument('--num_caps',   type=int,   default=25,    help='Number of capsules')
-    parser.add_argument('--cap_rec',    type=int,   default=40,   help='Capsule reconstruction dimension')
-    parser.add_argument('--cap_gen',    type=int,   default=40,   help='Capsule generation dimension')
+    parser.add_argument('--num_caps',   type=int,   default=40,    help='Number of capsules')
+    parser.add_argument('--cap_rec',    type=int,   default=50,   help='Capsule reconstruction dimension')
+    parser.add_argument('--cap_gen',    type=int,   default=50,   help='Capsule generation dimension')
     parser.add_argument('--lr',         type=float, default=0.001,  help='Learning rate')
     parser.add_argument('--dataset',    type=str,   default='MNIST', )
-    parser.add_argument('--len_pose',    type=int,   default=7, help='Capsule pose vector length. Minimum need to be 4, this includes translation and rotation. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
+    parser.add_argument('--len_pose',    type=int,   default=6, help='Capsule pose vector length. Minimum need to be 4, this includes translation and rotation. Use 2 for strict spatial equivariance analysis, or > 2 to prioritize image reconstruction capacity.')
     parser.add_argument('--random_translation',    type=int,   default=5, help='To control the size of the displacement, if want to train just for reconstruction set this to 0')
     parser.add_argument('--rotation_angle',    type=int,   default=45, help='To control range of rotation angles.')
     parser.add_argument('--scale_min',    type=float,   default=1.5, help='To control range of scale min.')
@@ -52,84 +52,166 @@ def Get_Args():
 
     return parser.parse_args()
 
+import torch
+import torch.nn.functional as F
 
-def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, scale_range, shear_range, padding_mode_sift, device, pose_dim):
-    B, _, H, W = imbatch.shape
 
-    R = torch.zeros(B, pose_dim, device=device)
-
+def _sample_T_R(B, H, W, dxdy, angle_range, scale_range, shear_range, device, pose_dim):
     # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
-    tx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
-    ty = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+    tx = torch.randint(low=dxdy[0], high=dxdy[1]+1, size=(B,), device=device).float()
+    ty = torch.randint(low=dxdy[0], high=dxdy[1]+1, size=(B,), device=device).float()
 
     # ── 2. Normalizar translação ──────────────────────────────────────────────
     dx_norm = tx / (W / 2.0)
     dy_norm = ty / (H / 2.0)
 
-    # Generate numbers between - angle_range e angle_range
     angle_deg = (
         torch.rand(B, device=device)
         * (angle_range[1] - angle_range[0])
         + angle_range[0]
     )
-
     angle_normalized = angle_deg / 180.0
-
-    # Convert to radianos, because torch only accept that
     theta = angle_deg * torch.pi / 180
-
     cos_theta = torch.cos(theta)
     sin_theta = torch.sin(theta)
-    # 0°   → [ 1,  0]
-    # 90°  → [ 0,  1]
-    # 180° → [-1,  0]
-    # 270° → [ 0, -1]
-    # 360° → [ 1,  0]
 
-    # scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
-    scale_x = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
-    scale_y = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+    scale = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
 
-    # shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
-    # shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
-    
-    # shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
-    # shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
     shear_angle_deg_x = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
     shear_angle_deg_y = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+    shear_x = torch.tan(shear_angle_deg_x * torch.pi / 180)
+    shear_y = torch.tan(shear_angle_deg_y * torch.pi / 180)
 
-    shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
-    shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+    # ── 3. Vetor de pose ──────────────────────────────────────────────────────
+    R = torch.zeros(B, pose_dim, device=device)
+    R[:, 0] = - dx_norm
+    R[:, 1] = dy_norm
+    R[:, 2] = angle_normalized
+    R[:, 3] = 1.0 - scale
+    R[:, 4] = shear_x
+    R[:, 5] = shear_y
 
-    shear_x = torch.tan(shear_angle_rad_x)
-    shear_y = torch.tan(shear_angle_rad_y)
+    # ── 4. Matriz T ───────────────────────────────────────────────────────────
+    T = torch.zeros(B, 2, 3, device=device)
+    T[:, 0, 0] = cos_theta * scale
+    T[:, 0, 1] = -sin_theta * scale + shear_x
+    T[:, 1, 0] = sin_theta * scale + shear_y
+    T[:, 1, 1] = cos_theta * scale
+    T[:, 0, 2] = dx_norm
+    T[:, 1, 2] = dy_norm
+
+    return T, R
+
+
+def _warp(img, T, padding_mode):
+    grid = F.affine_grid(T, img.size(), align_corners=False)
+    return F.grid_sample(img, grid, mode='bilinear',
+                         padding_mode=padding_mode, align_corners=False)
+
+
+def BatchShift_torch_Rotation(imbatch: torch.Tensor,
+                              dxdy, angle_range, scale_range, shear_range,           # imbatch    -> inp_image
+                              padding_mode_sift, device, pose_dim,
+                              dxdy_i = [-2, 2], angle_range_i = [-15, 15], scale_range_i = [0.95, 1.2], shear_range_i = [-10, 10],   # inp_image  -> target
+                            ):
+    B, _, H, W = imbatch.shape
+
+    # imbatch -> inp_image
+    T_in, _ = _sample_T_R(B, H, W, dxdy_i, angle_range_i, scale_range_i, shear_range_i,
+                       device, pose_dim)
+    inp_image = _warp(imbatch, T_in, padding_mode_sift)
+
+    # inp_image -> target 
+    T, R = _sample_T_R(B, H, W, dxdy, angle_range, scale_range, shear_range,
+                             device, pose_dim)
+    target = _warp(inp_image, T, padding_mode_sift)
+
+    return target, R, inp_image
+
+    
+# def BatchShift_torch_Rotation(imbatch: torch.Tensor, dxdy, angle_range, scale_range, shear_range, padding_mode_sift, device, pose_dim):
+#     inp_image = 
+#     B, _, H, W = inp_image.shape
+
+#     R = torch.zeros(B, pose_dim, device=device)
+
+#     # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
+#     tx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+#     ty = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+
+#     # ── 2. Normalizar translação ──────────────────────────────────────────────
+#     dx_norm = tx / (W / 2.0)
+#     dy_norm = ty / (H / 2.0)
+
+#     # Generate numbers between - angle_range e angle_range
+#     angle_deg = (
+#         torch.rand(B, device=device)
+#         * (angle_range[1] - angle_range[0])
+#         + angle_range[0]
+#     )
+
+#     angle_normalized = angle_deg / 180.0
+
+#     # Convert to radianos, because torch only accept that
+#     theta = angle_deg * torch.pi / 180
+
+#     cos_theta = torch.cos(theta)
+#     sin_theta = torch.sin(theta)
+#     # 0°   → [ 1,  0]
+#     # 90°  → [ 0,  1]
+#     # 180° → [-1,  0]
+#     # 270° → [ 0, -1]
+#     # 360° → [ 1,  0] 
+
+#     scale = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+#     # scale_x = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+#     scale_y = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+
+#     # shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
+#     # shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+    
+#     # shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
+#     # shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+#     shear_angle_deg_x = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+#     shear_angle_deg_y = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+
+#     shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+#     shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+
+#     shear_x = torch.tan(shear_angle_rad_x)
+#     shear_y = torch.tan(shear_angle_rad_y)
     
 
-    R[:,0] = - dx_norm
-    R[:,1] = dy_norm
-    R[:,2] = angle_normalized 
-    #R[:,3] = sin_theta
-    R[:,3] = 1.0 - scale_x
-    R[:,4] = 1.0 - scale_y
-    R[:,5] = shear_x
-    R[:,6] = shear_y
+#     R[:,0] = - dx_norm
+#     R[:,1] = dy_norm
+#     R[:,2] = angle_normalized 
+#     #R[:,3] = sin_theta
+#     #R[:,3] = 1.0 - scale_x
+#     R[:,3] = 1.0 - scale
+#     R[:,4] = shear_x
+#     R[:,5] = shear_y
 
-    # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
-    T = torch.zeros(B,2,3,device=device)
+#     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
+#     T = torch.zeros(B,2,3,device=device)
 
-    T[:,0,0] = cos_theta * scale_x
-    T[:,0,1] = -sin_theta * scale_y + shear_x
-    T[:,1,0] = sin_theta * scale_x + shear_y
-    T[:,1,1] = cos_theta * scale_y
+#     T[:,0,0] = cos_theta * scale
+#     T[:,0,1] = -sin_theta * scale + shear_x
+#     T[:,1,0] = sin_theta * scale + shear_y
+#     T[:,1,1] = cos_theta * scale
 
-    T[:,0,2] = dx_norm
-    T[:,1,2] = dy_norm
+#     # T[:,0,0] = cos_theta * scale_x
+#     # T[:,0,1] = -sin_theta * scale_y + shear_x
+#     # T[:,1,0] = sin_theta * scale_x + shear_y
+#     # T[:,1,1] = cos_theta * scale_y
 
-    grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
-    shifted = F.grid_sample(imbatch, grid, mode='bilinear',
-                            padding_mode=padding_mode_sift, align_corners=False)
+#     T[:,0,2] = dx_norm
+#     T[:,1,2] = dy_norm
 
-    return shifted, R
+#     grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
+#     target = F.grid_sample(imbatch, grid, mode='bilinear',
+#                             padding_mode=padding_mode_sift, align_corners=False)
+
+#     return target, R, inp_image
 
 def save_summary_to_file(model_stats, RESULTS_DIR):
     summary_str = str(model_stats)
@@ -217,79 +299,6 @@ def Save_In_Out_Target_Images(inp, target, out, epoch, i, RESULTS_DIR_IN_OUT_TAR
     caminho = os.path.join(diretorio, f'batch_{i:05d}.png')
     plt.imsave(caminho, img)
 
-
-# angle_range is the range of rotation angles in degrees, e.g., [-30, 30]
-def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift, device, pose_dim):
-    B, _, H, W = imbatch.shape
-
-    R = torch.zeros(B, pose_dim, device=device)
-
-    # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
-    tx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
-    ty = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
-
-    # ── 2. Normalizar translação ──────────────────────────────────────────────
-    dx_norm = tx / (W / 2.0)
-    dy_norm = ty / (H / 2.0)
-
-    # Generate numbers between - angle_range e angle_range
-    angle_deg = (
-        torch.rand(B, device=device)
-        * (angle_range[1] - angle_range[0])
-        + angle_range[0]
-    )
-
-    # Convert to radianos, because torch only accept that
-    theta = angle_deg * torch.pi / 180
-
-    cos_theta = torch.cos(theta)
-    sin_theta = torch.sin(theta)
-    # 0°   → [ 1,  0]
-    # 90°  → [ 0,  1]
-    # 180° → [-1,  0]
-    # 270° → [ 0, -1]
-    # 360° → [ 1,  0]
-
-    scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
-
-    # shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
-    # shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
-
-    shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
-    shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
-    
-    shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
-    shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
-
-    shear_x = torch.tan(shear_angle_rad_x)
-    shear_y = torch.tan(shear_angle_rad_y)
-    
-
-    R[:,0] = - dx_norm
-    R[:,1] = dy_norm
-    R[:,2] = cos_theta
-    R[:,3] = sin_theta
-    R[:,4] = 1.0 - scale
-    R[:,5] = shear_x
-    R[:,6] = shear_y
-
-    # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
-    T = torch.zeros(B,2,3,device=device)
-
-    T[:,0,0] = cos_theta * scale
-    T[:,0,1] = -sin_theta * scale + shear_x
-    T[:,1,0] = sin_theta * scale + shear_y
-    T[:,1,1] = cos_theta * scale 
-
-    T[:,0,2] = dx_norm
-    T[:,1,2] = dy_norm
-
-    grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
-    shifted = F.grid_sample(imbatch, grid, mode='bilinear',
-                            padding_mode=padding_mode_sift, align_corners=False)
-
-    return shifted, R
-
 def Loss_Txt(epoch, NUM_EPOCHS, time, current_loss, RESULTS_DIR_LOSS): 
     os.makedirs(RESULTS_DIR_LOSS, exist_ok=True) # save loss for each epoch
     text = f"Epoch [{epoch+1}/{NUM_EPOCHS}]; Time: {time:.2f} seconds; Loss: {current_loss:.4f}\n"
@@ -371,7 +380,7 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
         for level, row in enumerate(rows)
     ]
 
-    fig, axes = plt.subplots(nrows, ncols_max, figsize=(ncols_max * 4, nrows * 4))
+    fig, axes = plt.subplots(nrows, ncols_max, figsize=(ncols_max * 6, nrows * 6))
     axes = np.array(axes).reshape(nrows, ncols_max)
 
     for r in range(nrows):
@@ -397,7 +406,7 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
             im = ax_normal.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
 
             if level == 0:
-                ax_normal.set_title(f"Cap {i}; P={all_probs[i]:.3f}\n[{vmin:.2f}, {vmax:.2f}]", fontsize=14)
+                ax_normal.set_title(f"Cap {i}; P={all_probs[i]:.3f}\n[{vmin:.2f}, {vmax:.2f}]", fontsize=32)
             else:
                 ax_normal.set_title(f'[{vmin:.2f}, {vmax:.2f}]', fontsize=8)
 
@@ -416,7 +425,8 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
 
     os.makedirs(file_path, exist_ok=True)
 
-    plt.savefig(f'{file_path}/Sum_Caps_FeatureMaps.png', dpi=150, bbox_inches='tight')
+    #plt.savefig(f'{file_path}/Sum_Caps_FeatureMaps.png', dpi=150, bbox_inches='tight')
+    plt.savefig(f'{file_path}/Sum_Caps_FeatureMaps.pdf', bbox_inches="tight")
     plt.close(fig)
 
 def PlotGenerativeFeatureMaps(capL, X, transformation, img_h, img_w, file_path, num_capsule, num_generative):
@@ -488,6 +498,78 @@ def PlotGenerativeFeatureMaps(capL, X, transformation, img_h, img_w, file_path, 
 
 
 
+# # angle_range is the range of rotation angles in degrees, e.g., [-30, 30]
+# def BatchShift_torch(imbatch: torch.Tensor, dxdy, angle_range, padding_mode_sift, device, pose_dim):
+#     B, _, H, W = imbatch.shape
+
+#     R = torch.zeros(B, pose_dim, device=device)
+
+#     # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
+#     tx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+#     ty = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+
+#     # ── 2. Normalizar translação ──────────────────────────────────────────────
+#     dx_norm = tx / (W / 2.0)
+#     dy_norm = ty / (H / 2.0)
+
+#     # Generate numbers between - angle_range e angle_range
+#     angle_deg = (
+#         torch.rand(B, device=device)
+#         * (angle_range[1] - angle_range[0])
+#         + angle_range[0]
+#     )
+
+#     # Convert to radianos, because torch only accept that
+#     theta = angle_deg * torch.pi / 180
+
+#     cos_theta = torch.cos(theta)
+#     sin_theta = torch.sin(theta)
+#     # 0°   → [ 1,  0]
+#     # 90°  → [ 0,  1]
+#     # 180° → [-1,  0]
+#     # 270° → [ 0, -1]
+#     # 360° → [ 1,  0]
+
+#     scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
+
+#     # shear_x = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+#     # shear_y = torch.rand(B, device=device) * (0.30 + 0.30) - 0.30 
+
+#     shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
+#     shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+    
+#     shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
+#     shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+
+#     shear_x = torch.tan(shear_angle_rad_x)
+#     shear_y = torch.tan(shear_angle_rad_y)
+    
+
+#     R[:,0] = - dx_norm
+#     R[:,1] = dy_norm
+#     R[:,2] = cos_theta
+#     R[:,3] = sin_theta
+#     R[:,4] = 1.0 - scale
+#     R[:,5] = shear_x
+#     R[:,6] = shear_y
+
+#     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
+#     T = torch.zeros(B,2,3,device=device)
+
+#     T[:,0,0] = cos_theta * scale
+#     T[:,0,1] = -sin_theta * scale + shear_x
+#     T[:,1,0] = sin_theta * scale + shear_y
+#     T[:,1,1] = cos_theta * scale 
+
+#     T[:,0,2] = dx_norm
+#     T[:,1,2] = dy_norm
+
+#     grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
+#     shifted = F.grid_sample(imbatch, grid, mode='bilinear',
+#                             padding_mode=padding_mode_sift, align_corners=False)
+
+#     return shifted, R
+
 
 # def Save_Feature_Map_Images(inp, target, out, caps_imgs, label, RESULTS_DIR_IN_OUT_TARGET_IMAGES, DATASET, transformations):
 #     transformations = '_'.join(str(round(float(v), 2)) for v in transformations.flatten())
@@ -557,3 +639,81 @@ def PlotGenerativeFeatureMaps(capL, X, transformation, img_h, img_w, file_path, 
 #         current = summed_sorted
 
 #     return levels, indices
+
+# def BatchShift_torch_scale_x_scale_y(imbatch: torch.Tensor, dxdy, angle_range, scale_range, shear_range, padding_mode_sift, device, pose_dim):
+#     B, _, H, W = imbatch.shape
+
+#     R = torch.zeros(B, pose_dim, device=device)
+
+#     # ── 1. Amostrar parâmetros ────────────────────────────────────────────────
+#     tx = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+#     ty = torch.randint(low=dxdy[0], high=dxdy[1], size=(B,), device=device).float()
+
+#     # ── 2. Normalizar translação ──────────────────────────────────────────────
+#     dx_norm = tx / (W / 2.0)
+#     dy_norm = ty / (H / 2.0)
+
+#     # Generate numbers between - angle_range e angle_range
+#     angle_deg = (
+#         torch.rand(B, device=device)
+#         * (angle_range[1] - angle_range[0])
+#         + angle_range[0]
+#     )
+
+#     angle_normalized = angle_deg / 180.0
+
+#     # Convert to radianos, because torch only accept that
+#     theta = angle_deg * torch.pi / 180
+
+#     cos_theta = torch.cos(theta)
+#     sin_theta = torch.sin(theta)
+#     # 0°   → [ 1,  0]
+#     # 90°  → [ 0,  1]
+#     # 180° → [-1,  0]
+#     # 270° → [ 0, -1]
+#     # 360° → [ 1,  0]
+
+#     # scale = torch.rand(B, device=device) * (1.5 - 0.90) + 0.90 
+#     scale_x = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+#     scale_y = torch.rand(B, device=device) * (scale_range[0] - scale_range[1]) + scale_range[1]
+
+#     # shear_angle_deg_x = torch.rand(B, device=device) * (17 + 17) - 17
+#     # shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+    
+#     # shear_angle_deg_y = torch.rand(B, device=device) * (17 + 17) - 17
+#     # shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+#     shear_angle_deg_x = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+#     shear_angle_deg_y = torch.rand(B, device=device) * (shear_range[1] - shear_range[0]) + shear_range[0]
+
+#     shear_angle_rad_x = shear_angle_deg_x * torch.pi / 180
+#     shear_angle_rad_y = shear_angle_deg_y * torch.pi / 180
+
+#     shear_x = torch.tan(shear_angle_rad_x)
+#     shear_y = torch.tan(shear_angle_rad_y)
+    
+
+#     R[:,0] = - dx_norm
+#     R[:,1] = dy_norm
+#     R[:,2] = angle_normalized 
+#     #R[:,3] = sin_theta
+#     R[:,3] = 1.0 - scale_x
+#     R[:,4] = 1.0 - scale_y
+#     R[:,5] = shear_x
+#     R[:,6] = shear_y
+
+#     # ── 4. Construir T e aplicar à imagem ────────────────────────────────────
+#     T = torch.zeros(B,2,3,device=device)
+
+#     T[:,0,0] = cos_theta * scale_x
+#     T[:,0,1] = -sin_theta * scale_y + shear_x
+#     T[:,1,0] = sin_theta * scale_x + shear_y
+#     T[:,1,1] = cos_theta * scale_y
+
+#     T[:,0,2] = dx_norm
+#     T[:,1,2] = dy_norm
+
+#     grid    = F.affine_grid(T, imbatch.size(), align_corners=False)
+#     shifted = F.grid_sample(imbatch, grid, mode='bilinear',
+#                             padding_mode=padding_mode_sift, align_corners=False)
+
+#     return shifted, R

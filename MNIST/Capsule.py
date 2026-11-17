@@ -51,12 +51,13 @@ class Capsule(nn.Module):
         rotation = pose[:, 2] + transformation[:, 2] # Rotacao
         # sin_t = normalize_pose[:, 3] * transformation[:, 2] + normalize_pose[:, 2] * transformation[:, 3]
         #scale = pose[:, 3] + transformation[:, 3] # scale
-        scale_x = pose[:, 3] + transformation[:, 3] # scale x
-        scale_y = pose[:, 4] + transformation[:, 4] # scale y
-        shear_x = pose[:, 5] + transformation[:, 5] # shear x
-        shear_y = pose[:, 6] + transformation[:, 6] # shear y
+        scale = pose[:, 3] + transformation[:, 3] # scale x
+        #scale_y = pose[:, 4] + transformation[:, 4] # scale y
+        shear_x = pose[:, 4] + transformation[:, 4] # shear x
+        shear_y = pose[:, 5] + transformation[:, 5] # shear y
 
-        transformer_pose = torch.stack([dx, dy, rotation, scale_x, scale_y, shear_x, shear_y], dim=1)
+        transformer_pose = torch.stack([dx, dy, rotation, scale, shear_x, shear_y], dim=1)
+        #transformer_pose = torch.stack([dx, dy, rotation, scale, scale_y, shear_x, shear_y], dim=1)
 
         # print('x_y + del', (x_y + delxy).size()) 
         # x_y + del torch.Size([64, 2])   
@@ -68,6 +69,7 @@ class Capsule(nn.Module):
 
         # rec = self.gen_out(gen)
         rec = F.leaky_relu(self.gen_out(gen), negative_slope=20)
+        #rec = self.gen_out(gen)
         # print('rec',rec.size()) 
         # rec torch.Size([64, 784])
 
