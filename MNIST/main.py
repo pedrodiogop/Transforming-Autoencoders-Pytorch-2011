@@ -4,7 +4,7 @@ import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
-from aux_functions import Get_Args, Save_In_Out_Target_Images, BatchShift_torch, Plot_Loss, PlotGenrative, Loss_Txt, set_seed, save_summary_to_file, BatchShift_torch_Rotation
+from aux_functions import Get_Args, Save_In_Out_Target_Images, Plot_Loss, PlotGenrative, Loss_Txt, set_seed, save_summary_to_file, BatchShift_torch_Rotation
 from aux_gradients import Plot_Gradient_Flow_by_layer, Plot_Gradient_Flow_by_capsule, Save_Mean_Gradients_by_capsule, Save_Mean_Gradients_by_layer
 from CapLayer import CapLayer
 import torch.optim as optim
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     set_seed(SEED)
 
     # Define the directory to save results
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_Linear'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_20'
     RESULTS_DIR_TRAIN = f'{RESULTS_DIR}/Train'
     RESULTS_DIR_LOSS = f'{RESULTS_DIR_TRAIN}/Loss_Image_TXT'
     RESULTS_DIR_IN_OUT_TARGET_IMAGES = f'{RESULTS_DIR_TRAIN}/In_Out_Target_Images'

@@ -380,7 +380,7 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
         for level, row in enumerate(rows)
     ]
 
-    fig, axes = plt.subplots(nrows, ncols_max, figsize=(ncols_max * 6, nrows * 6))
+    fig, axes = plt.subplots(nrows, ncols_max, figsize=(ncols_max * 4, nrows * 4))
     axes = np.array(axes).reshape(nrows, ncols_max)
 
     for r in range(nrows):
@@ -406,9 +406,9 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
             im = ax_normal.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
 
             if level == 0:
-                ax_normal.set_title(f"Cap {i}; P={all_probs[i]:.3f}\n[{vmin:.2f}, {vmax:.2f}]", fontsize=32)
+                ax_normal.set_title(f"C{i}; P={all_probs[i]:.2f}\n[{vmin:.2f}, {vmax:.2f}]", fontsize=40)
             else:
-                ax_normal.set_title(f'[{vmin:.2f}, {vmax:.2f}]', fontsize=8)
+                ax_normal.set_title(f'[{vmin:.2f}, {vmax:.2f}]', fontsize=40)
 
             fig.colorbar(im, ax=ax_normal, fraction=0.046, pad=0.04)
             ax_normal.axis('on')
@@ -426,75 +426,75 @@ def plot_feature_maps_rows(caps_imgs, inp, out, target, all_probs, file_path, cm
     os.makedirs(file_path, exist_ok=True)
 
     #plt.savefig(f'{file_path}/Sum_Caps_FeatureMaps.png', dpi=150, bbox_inches='tight')
-    plt.savefig(f'{file_path}/Sum_Caps_FeatureMaps.pdf', bbox_inches="tight")
+    plt.savefig(f'{file_path}/sum_caps_partial_reconstructions.pdf', bbox_inches="tight")
     plt.close(fig)
 
-def PlotGenerativeFeatureMaps(capL, X, transformation, img_h, img_w, file_path, num_capsule, num_generative):
+# def PlotGenerativeFeatureMaps(capL, X, transformation, img_h, img_w, file_path, num_capsule, num_generative):
 
-    fig_w = num_generative * 3
-    fig_h = num_capsule * 3
+#     fig_w = num_generative * 3
+#     fig_h = num_capsule * 3
 
-    fig, axes = plt.subplots(num_capsule,
-                                num_generative,
-                                figsize=(fig_w, fig_h))
+#     fig, axes = plt.subplots(num_capsule,
+#                                 num_generative,
+#                                 figsize=(fig_w, fig_h))
 
-    # fig.suptitle(
-    #     f'Feature maps Generative Units',
-    #     fontsize=6
-    # )
+#     # fig.suptitle(
+#     #     f'Feature maps Generative Units',
+#     #     fontsize=6
+#     # )
 
-    with torch.no_grad():
+#     with torch.no_grad():
 
-        for k in range(num_capsule):
+#         for k in range(num_capsule):
 
-            cap = capL.caps[k]
-            _, _, prob, gen = cap(X, transformation)
-            prob_value = prob.mean().item()
-            # print(gen.size()) torch.Size([1, 40])
+#             cap = capL.caps[k]
+#             _, _, prob, gen = cap(X, transformation)
+#             prob_value = prob.mean().item()
+#             # print(gen.size()) torch.Size([1, 40])
 
-            for p in range(num_generative):
+#             for p in range(num_generative):
 
-                ax = axes[k][p]
+#                 ax = axes[k][p]
 
-                single_gen = torch.zeros_like(gen)
-                single_gen[:, p] = gen[:, p]
-                feature = cap.gen_out(single_gen)
+#                 single_gen = torch.zeros_like(gen)
+#                 single_gen[:, p] = gen[:, p]
+#                 feature = cap.gen_out(single_gen)
 
-                # média no batch
-                feature = feature.mean(dim=0) # Se batch for maior que 1 faz a media das imagens caso contrario apenas remove uma dimensao
+#                 # média no batch
+#                 feature = feature.mean(dim=0) # Se batch for maior que 1 faz a media das imagens caso contrario apenas remove uma dimensao
 
-                feature = feature.view(img_h,img_w)
-                feature_clamped = feature.clamp(min=0, max=1)
-                ax.imshow(feature_clamped.cpu(),
-                        cmap='gray')
+#                 feature = feature.view(img_h,img_w)
+#                 feature_clamped = feature.clamp(min=0, max=1)
+#                 ax.imshow(feature_clamped.cpu(),
+#                         cmap='gray')
 
-                ax.axis('on')
+#                 ax.axis('on')
 
-                if k == 0:
-                    ax.set_title(
-                        f'Gen {p}',
-                        fontsize=15
-                    )
+#                 if k == 0:
+#                     ax.set_title(
+#                         f'Gen {p}',
+#                         fontsize=15
+#                     )
 
-                if p == 0:  
-                    ax.set_ylabel(f'Cap {k}\nProb: {prob_value:.2f}', fontsize=15)
+#                 if p == 0:  
+#                     ax.set_ylabel(f'Cap {k}\nProb: {prob_value:.2f}', fontsize=15)
 
-    # plt.subplots_adjust(
-    #     wspace=0.10,
-    #     hspace=0.10
-    # )
+#     # plt.subplots_adjust(
+#     #     wspace=0.10,
+#     #     hspace=0.10
+#     # )
 
-    plt.tight_layout()
+#     plt.tight_layout()
 
 
-    os.makedirs(file_path, exist_ok=True)
-    plt.savefig(
-        f'{file_path}/FeatureMaps_Generetive_Units.png',
-        dpi=150,
-        bbox_inches='tight'
-    )
+#     os.makedirs(file_path, exist_ok=True)
+#     plt.savefig(
+#         f'{file_path}/FeatureMaps_Generetive_Units.png',
+#         dpi=150,
+#         bbox_inches='tight'
+#     )
 
-    plt.close(fig)
+#     plt.close(fig)
 
 
 

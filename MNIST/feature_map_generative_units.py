@@ -2,7 +2,7 @@ import os
 import torch
 import torchvision
 import matplotlib.pyplot as plt
-from aux_functions import Get_Args, BatchShift_torch_Rotation, plot_feature_maps_rows, Input_Target_Output_Images, PlotGenerativeFeatureMaps, set_seed
+from aux_functions import Get_Args, BatchShift_torch_Rotation, plot_feature_maps_rows, Input_Target_Output_Images, set_seed #, PlotGenerativeFeatureMaps,
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     set_seed(SEED)
 
     
-    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_20'
+    RESULTS_DIR = f'Results/{args.dataset}/{BATCH_SIZE}_{NUM_CAPS}_{CAP_REC}_{CAP_GEN}_{LEN_POSE}_{RANDOM_TRANSLATION}_{ROTATION_ANGLE}_{SCALE_MIN}_{SCALE_MAX}_{SHEAR}_{lr}_{SEED}_Linear'
     RESULTS_DIR_PARTIAL_RECONSTRUCTIONS = f'{RESULTS_DIR}/Partial_Reconstructions'
 
     padding_mode_sift = 'zeros'
@@ -46,12 +46,13 @@ if __name__ == '__main__':
     dataset_class = getattr(datasets, DATASET)
     test_set = dataset_class(root="tmp", train=False, download=True, transform=ToTensor())
     testeloader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-
-    image_index = 2 # Index of the image to visualize
+    # 0, 1, 2, 3, 4, 7, 8, 11, 18, 61
+    image_index = 4 # Index of the image to visualize
     # testeloader.dataset[i][j] -> (image,label)
     sample = testeloader.dataset[image_index][0]  # (C, H, W)
     label = testeloader.dataset[image_index][1]
     print(label)
+   # print(testeloader.dataset.targets[:70])
     IN_DIM = sample.numel()  # total number of pixels (C*H*W)
     IMG_C, IMG_H, IMG_W = sample.shape
 
