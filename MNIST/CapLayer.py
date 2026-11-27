@@ -19,13 +19,14 @@ class CapLayer(nn.Module):
     def forward(self, X, delxy, sep = False):
         caps_out = []
         pose = [] # Pose (x,y), each capsule
-        Prob = [] # Probability of feature being present, each capsule
+        prob = [] # Probability of feature being present, each capsule
         for cap in self.caps:
             result = cap(X, delxy, sp = sep)
             if sep:
-                out, p, prob = result
-                pose.append(p)
-                Prob.append(prob)
+                # out, p, prob = result
+                out, caps_prob = result
+                # pose.append(p)
+                prob.append(caps_prob)
             else:
                 out = result
             caps_out.append(out)
@@ -42,14 +43,15 @@ class CapLayer(nn.Module):
         # print(f"{batch_images.size()}") # torch.Size([64, 784])
 
         if sep:
-            pose_stack = torch.stack(pose, dim=0)
+            #pose_stack = torch.stack(pose, dim=0)
             # print(f"{pose_stack.size()}") # torch.Size([25, 64, 2])
-            all_probs = torch.stack(Prob, dim=0)
+            all_probs = torch.stack(prob, dim=0)
             # print(f"{all_probs.size()}") # torch.Size([25, 64, 1])
             # pose_prob = (pose_stack * all_probs).sum(dim=0) / all_probs.sum(dim=0)
             # print(f"{pose_prob.size()}") # torch.Size([64, 2])
 
-        return batch_images if not sep else (batch_images, pose_stack, all_probs)
+#        return batch_images if not sep else (batch_images, pose_stack, all_probs)
+        return batch_images if not sep else (batch_images, all_probs)
         # batch_image -> is the sum of the contributions of all capsules to each pixel in the output image
         # We didnt use the sigmoid activation on batch_image because we will use BCEWithLogitsLoss which 
         # combines a sigmoid layer and the BCELoss in one single class. This is more numerically stable than using a plain Sigmoid followed by a BCELoss as it takes care of the log-sum-exp trick for us.

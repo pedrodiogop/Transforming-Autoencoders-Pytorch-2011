@@ -74,7 +74,8 @@ class Capsule(nn.Module):
         # rec torch.Size([64, 784])
 
         output = rec * prb # torch.mul(rec, prb)
-        return (output, normalize_pose, prb) if sp else output
+        # return (output, normalize_pose, prb) if sp else output
+        return (output, prb) if sp else output
 
         ##### Codigo oficial ######
         # # Normalizar a pose para respeitar a regra: cos2+sin2​=1 
