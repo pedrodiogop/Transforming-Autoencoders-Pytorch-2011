@@ -65,7 +65,7 @@ def probs_com_transf(model, loader):
     classes = torch.cat(labels_list, dim=0)                      # [N_teste]
     return all_prob_caps, classes 
 
-def guardar_resultados(matrix_prob_media, matrix_prob_std, nome, seed, n_classes=10):
+def guardar_resultados(matrix_prob_media, matrix_prob_std, media_por_capsula, std_por_capsula, nome, seed, n_classes=10):
     n_caps = matrix_prob_media.shape[0] # numero de capulas
     # n_por_classe = np.array([(Y == c).sum().item() for c in range(n_classes)]) # numero de imagens por classe
     media_por_classe = matrix_prob_media.mean(axis=0)               # [10] média das 40 cápsulas por classe
@@ -74,8 +74,11 @@ def guardar_resultados(matrix_prob_media, matrix_prob_std, nome, seed, n_classes
     fig, ax = plt.subplots(figsize=(21, 6))
     im = ax.imshow(matrix_prob_media.T, cmap="Reds", vmin=0, vmax=1, aspect="auto")
     ax.set_xlim(-0.5, n_caps + 0.5)                    # espaço para a coluna extra
+    ax.set_ylim(n_classes + 0.5, -0.5)
     ax.set_xticks(list(range(n_caps)) + [n_caps])
     ax.set_xticklabels([str(k) for k in range(n_caps)] + ["Mean"])
+    ax.set_yticks(list(range(n_classes)) + [n_classes])                
+    ax.set_yticklabels([str(c) for c in range(n_classes)] + ["Mean"]) 
     ax.set_yticks(range(n_classes));  ax.set_yticklabels(range(n_classes))
     ax.set_xlabel("Capsule");  ax.set_ylabel("Class")
     ax.set_title(f"Mean ± std of probabilities; {nome}; Seed={seed}")
@@ -92,7 +95,12 @@ def guardar_resultados(matrix_prob_media, matrix_prob_std, nome, seed, n_classes
         ax.text(n_caps, c, f"{media_por_classe[c]:.2f}", ha="center", va="center",
                 fontsize=6, fontweight="bold", color="black")
 
+    for k in range(n_caps):
+        ax.text(k, n_classes, f"{media_por_capsula[k]:.2f}\n±{std_por_capsula[k]:.2f}", ha="center", va="center",
+                fontsize=6, fontweight="bold", color="black")
+
     ax.axvline(n_caps - 0.5, color="black", linewidth=1)   # separador
+    ax.axhline(n_classes - 0.5, color="black", linewidth=1)
     plt.tight_layout()
     plt.savefig(f"{RESULTS_DIR_RELATIONSHIP_CAPS_CLASSES}/Mean_Prob_{nome}_SEED_{seed}.pdf")
     plt.show()
@@ -149,6 +157,12 @@ if __name__ == '__main__':
     # vector_classes -> [N_teste]
     _, matrix_prob_media, matrix_prob_std, _ = prob_media(all_prob_caps, vector_classes)
     _, matrix_prob_media_without, matrix_prob_std_without, _ = prob_media(all_prob_caps_without, vector_classes)
-    
-    guardar_resultados(matrix_prob_media, matrix_prob_std, "With_transformations", SEED)
-    guardar_resultados(matrix_prob_media_without, matrix_prob_std_without, "Without_transformations", SEED)
+
+    media_por_capsula = all_prob_caps.mean(dim=1).numpy()                       # [40] média sobre todas as imagens
+    std_por_capsula = all_prob_caps.std(dim=1).numpy()
+
+    media_por_capsula_without = all_prob_caps_without.mean(dim=1).numpy()       # [40]  
+    std_por_capsula_without = all_prob_caps_without.std(dim=1).numpy()
+
+    guardar_resultados(matrix_prob_media, matrix_prob_std, media_por_capsula, std_por_capsula, "With_transformations", SEED)
+    guardar_resultados(matrix_prob_media_without, matrix_prob_std_without, media_por_capsula_without, std_por_capsula_without, "Without_transformations", SEED)
